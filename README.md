@@ -460,7 +460,7 @@ use B7s\FluentCut\Enums\HardwareAccel;
 ```
 
 **Platform detection:**
-- macOS → VideoToolbox (Apple Silicon优先)
+- macOS → VideoToolbox (Apple Silicon)
 - Windows → Nvenc, then Qsv
 - Linux → Nvenc, then Vaapi, then Qsv
 
