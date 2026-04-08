@@ -1,0 +1,58 @@
+{
+    "name": "b7s/fluentcut",
+    "description": "A fluent PHP API for programmatic video editing powered by FFmpeg - compose, transform, and create videos with an elegant chainable interface",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "video",
+        "video-editing",
+        "ffmpeg",
+        "slideshow",
+        "video-composition",
+        "php",
+        "fluent",
+        "media",
+        "cli"
+    ],
+    "authors": [
+        {
+            "name": "b7s",
+            "email": "me@brunots.dev"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "symfony/console": "^7.0",
+        "symfony/process": "^7.0"
+    },
+    "require-dev": {
+        "pestphp/pest": "^4.3",
+        "phpstan/phpstan": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "B7s\\FluentCut\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "B7s\\FluentCut\\Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/fluentcut"
+    ],
+    "scripts": {
+        "test": "./vendor/bin/pest",
+        "test:unit": "./vendor/bin/pest --testsuite=Unit",
+        "test:coverage": "./vendor/bin/pest --coverage",
+        "analyse": "phpstan analyse src --level=6"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable"
+}
