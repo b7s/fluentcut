@@ -9,7 +9,7 @@ use B7s\FluentCut\FluentCut;
 $result = FluentCut::make()
     ->fullHd()
     ->addImage(__DIR__ . '/../examples/assets/slide2.jpg', duration: 5)
-    ->addStyledText(
+    ->addText(
         text: 'Welcome to FluentCut',
         x: 'center',
         y: '10%',

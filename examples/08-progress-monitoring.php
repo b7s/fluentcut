@@ -10,7 +10,7 @@ use B7s\FluentCut\Results\ProgressInfo;
 $result = FluentCut::make()
     ->fullHd()
     ->addColor('#1a1a2e', duration: 3)
-    ->addStyledText(
+    ->addText(
         text: 'Real-time Progress Demo',
         x: 'center',
         y: 'center',
@@ -23,7 +23,7 @@ $result = FluentCut::make()
         shadowColor: 'black@0.7',
     )
     ->addColor('#16213e', duration: 3)
-    ->addBorderedText('Monitoring render progress...', x: 'center', y: 'center', fontSize: 36)
+    ->addText('Monitoring render progress...', x: 'center', y: 'center', fontSize: 36, borderWidth: 3)
     ->fade(0.5)
     ->onProgress(function (ProgressInfo $progress) {
         $bar = str_repeat('=', (int) round($progress->percentage / 2.5));

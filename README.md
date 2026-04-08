@@ -94,7 +94,7 @@ echo "Duration: " . $result->getFormattedDuration();
 $result = FluentCut::make()
     ->fullHd()
     ->addImage('background.jpg', duration: 5)
-    ->addStyledText(
+    ->addText(
         text: 'Welcome to FluentCut',
         x: 'center',
         y: '10%',
@@ -288,39 +288,23 @@ Add solid-color clips to create title screens, interstitials, or backgrounds.
 
 ### Text Overlays
 
-Add text to the last added clip. All text methods support positioning with pixel values, percentages (`'50%'`), or keywords (`'center'`, `'top'`, `'bottom'`, `'left'`, `'right'`).
+Add text to the last added clip. All parameters except `text` are optional. Supports positioning with pixel values, percentages (`'50%'`), or keywords (`'center'`, `'top'`, `'bottom'`, `'left'`, `'right'`).
 
 ```php
-// Plain text
-->addText('Hello', x: 'center', y: 'center', fontSize: 32, fontColor: 'white')
+// Text with just the text parameter (all other options have sensible defaults)
+->addText('Hello')
 
-// Text with border for readability
-->addBorderedText(
-    text: 'Title',
-    fontSize: 64,
-    borderWidth: 3,
-    borderColor: 'black'
-)
+// Custom position, size, and color
+->addText('Title', x: 'center', y: 'top', fontSize: 64, fontColor: 'white')
 
-// Text with drop shadow
-->addShadowText(
-    text: 'Subtitle',
-    shadowX: 3,
-    shadowY: 3,
-    shadowColor: 'black@0.5'
-)
+// Add border/outline
+->addText('Subtitle', borderWidth: 3, borderColor: 'black')
 
-// Fully styled (border + shadow combined)
-->addStyledText(
-    text: 'Welcome',
-    fontSize: 48,
-    fontColor: 'white',
-    borderWidth: 2,
-    borderColor: 'black',
-    shadowX: 2,
-    shadowY: 2,
-    shadowColor: 'black@0.5'
-)
+// Add drop shadow
+->addText('With Shadow', shadowX: 3, shadowY: 3, shadowColor: 'black@0.5')
+
+// Both border and shadow combined
+->addText('Styled', borderWidth: 2, borderColor: 'black', shadowX: 2, shadowY: 2, shadowColor: 'black@0.5')
 
 // Custom font file
 ->addText('Custom', fontFile: '/path/to/font.ttf')

@@ -243,7 +243,7 @@ class FluentCut
         string $borderColor = 'black',
         int $shadowX = 0,
         int $shadowY = 0,
-        string $shadowColor = 'black',
+        string $shadowColor = 'black@0.5',
         float $start = 0.0,
         ?float $end = null,
     ): self {
@@ -271,88 +271,7 @@ class FluentCut
         return $this;
     }
 
-    /**
-     * Add text with a border/outline.
-     */
-    public function addBorderedText(
-        string $text,
-        int|string $x = 'center',
-        int|string $y = 'center',
-        int $fontSize = 32,
-        string $fontColor = 'white',
-        int $borderWidth = 3,
-        string $borderColor = 'black',
-        ?string $fontFile = null,
-    ): self {
-        return $this->addText(
-            text: $text,
-            x: $x,
-            y: $y,
-            fontSize: $fontSize,
-            fontColor: $fontColor,
-            fontFile: $fontFile,
-            borderWidth: $borderWidth,
-            borderColor: $borderColor,
-        );
-    }
-
-    /**
-     * Add text with a drop shadow.
-     */
-    public function addShadowText(
-        string $text,
-        int|string $x = 'center',
-        int|string $y = 'center',
-        int $fontSize = 32,
-        string $fontColor = 'white',
-        int $shadowX = 3,
-        int $shadowY = 3,
-        string $shadowColor = 'black@0.5',
-        ?string $fontFile = null,
-    ): self {
-        return $this->addText(
-            text: $text,
-            x: $x,
-            y: $y,
-            fontSize: $fontSize,
-            fontColor: $fontColor,
-            fontFile: $fontFile,
-            shadowX: $shadowX,
-            shadowY: $shadowY,
-            shadowColor: $shadowColor,
-        );
-    }
-
-    /**
-     * Add text with both border and shadow.
-     */
-    public function addStyledText(
-        string $text,
-        int|string $x = 'center',
-        int|string $y = 'center',
-        int $fontSize = 32,
-        string $fontColor = 'white',
-        int $borderWidth = 2,
-        string $borderColor = 'black',
-        int $shadowX = 2,
-        int $shadowY = 2,
-        string $shadowColor = 'black@0.5',
-        ?string $fontFile = null,
-    ): self {
-        return $this->addText(
-            text: $text,
-            x: $x,
-            y: $y,
-            fontSize: $fontSize,
-            fontColor: $fontColor,
-            fontFile: $fontFile,
-            borderWidth: $borderWidth,
-            borderColor: $borderColor,
-            shadowX: $shadowX,
-            shadowY: $shadowY,
-            shadowColor: $shadowColor,
-        );
-    }
+    
 
     // =========================================================================
     // IMAGE OVERLAYS (applied to the last clip)
