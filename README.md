@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="docs/logo.webp" alt="Logo" width="200"/>
   
   # FluentCut
   

@@ -11,9 +11,7 @@ echo "Just a moment. This may take some time..." . PHP_EOL . PHP_EOL;
 
 $result = FluentCut::make()
     ->fullHd()
-    // GPU acceleration is disabled by default due to VAAPI driver issues on some AMD GPUs
-    // Use ->useGpu() only if you have confirmed working hardware acceleration
-    // ->useGpu()
+    ->useGpu()
     ->addVideo(__DIR__ . '/../examples/assets/intro.mp4')
     ->addImage(__DIR__ . '/../examples/assets/slide3.jpg', duration: 5)
     ->addBorderedText('Chapter 1', x: 'center', y: 'top', fontSize: 64, borderWidth: 3)

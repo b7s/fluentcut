@@ -164,43 +164,34 @@ final class CompositorService
         }
 
         $needsConcat = count($segmentPaths) > 1;
-            $needsTransitions = $needsConcat && $transition !== null && $transition !== Transition::None;
-            $needsAudio = $audioPath !== null;
+        $needsTransitions = $needsConcat && $transition !== null && $transition !== Transition::None;
+        $needsAudio = $audioPath !== null;
 
-            if (!$needsConcat && !$needsAudio) {
-                $finalPath = $segmentPaths[0];
-            } elseif ($needsTransitions) {
-                $finalPath = $this->applyTransitions(
-                    $segmentPaths, $width, $height, $fps, $codec,
-                    $transition, $transitionDuration,
-                    $audioPath, $loopAudio, $audioVolume, $keepSourceAudio,
-                    $verbose, $tempFiles, $onProgress, $fps, $totalDuration, $timeout,
-                );
-            } else {
-                $finalPath = $this->concatenateSimple($segmentPaths, $verbose, $tempFiles, $timeout);
-            }
-
-            if ($needsAudio && !$needsTransitions) {
-                $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . uniqid() . '.mp4';
-                $tempFiles[] = $mixedPath;
-                $this->mixAudio($finalPath, $audioPath, $mixedPath, $loopAudio, $audioVolume, $keepSourceAudio, $verbose, $onProgress, $fps, $totalDuration, $timeout);
-                $finalPath = $mixedPath;
-            }
-
-            if ($finalPath !== $outputPath) {
-                rename($finalPath, $outputPath);
-            }
-
-            return $this->buildResult($outputPath);
-        } catch (\Throwable $e) {
-            return RenderResult::failure($e->getMessage());
-        } finally {
-            foreach ($tempFiles as $tempFile) {
-                if (file_exists($tempFile)) {
-                    @unlink($tempFile);
-                }
-            }
+        if (!$needsConcat && !$needsAudio) {
+            $finalPath = $segmentPaths[0];
+        } elseif ($needsTransitions) {
+            $finalPath = $this->applyTransitions(
+                $segmentPaths, $width, $height, $fps, $codec,
+                $transition, $transitionDuration,
+                $audioPath, $loopAudio, $audioVolume, $keepSourceAudio,
+                $verbose, $tempFiles, $onProgress, $fps, $totalDuration, $timeout,
+            );
+        } else {
+            $finalPath = $this->concatenateSimple($segmentPaths, $verbose, $tempFiles, $timeout);
         }
+
+        if ($needsAudio && !$needsTransitions) {
+            $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . uniqid() . '.mp4';
+            $tempFiles[] = $mixedPath;
+            $this->mixAudio($finalPath, $audioPath, $mixedPath, $loopAudio, $audioVolume, $keepSourceAudio, $verbose, $onProgress, $fps, $totalDuration, $timeout);
+            $finalPath = $mixedPath;
+        }
+
+        if ($finalPath !== $outputPath) {
+            rename($finalPath, $outputPath);
+        }
+
+        return $this->buildResult($outputPath);
     }
 
     /**
