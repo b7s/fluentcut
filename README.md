@@ -92,6 +92,7 @@ echo "Duration: " . $result->getFormattedDuration();
 
 ```php
 $result = FluentCut::make()
+    ->fromVideo('input.mp4')
     ->fullHd()
     ->addImage('background.jpg', duration: 5)
     ->addText(
@@ -106,7 +107,13 @@ $result = FluentCut::make()
         shadowY: 3,
         shadowColor: 'black@0.7',
     )
-    ->addText('A fluent video editing API', x: 'center', y: '25%', fontSize: 28, fontColor: '#cccccc')
+    ->addText(
+        'A fluent video editing API',
+        x: 'center',
+        y: '25%',
+        fontSize: 28,
+        fontColor: '#cccccc'
+    )
     ->saveTo('output/text-overlay.mp4')
     ->render();
 ```
@@ -152,11 +159,11 @@ $result = FluentCut::make()
     ->fullHd()
     ->addVideo('intro.mp4')
     ->addImage('slide.png', duration: 5)
-    ->addBorderedText('Chapter 1', x: 'center', y: 'top', fontSize: 64, borderWidth: 3)
+    ->addText('Chapter 1', x: 'center', y: 'top', fontSize: 64, borderWidth: 3)
     ->overlayImage('logo.png', x: '90%', y: '5%', width: 120)
     ->addBlack(0.5)
     ->addVideo('outro.mp4', start: 0, end: 10)
-    ->addShadowText('Thanks for watching!', x: 'center', y: 'center', fontSize: 48)
+    ->addText('Thanks for watching!', x: 'center', y: 'center', fontSize: 48)
     ->transition(Transition::Fade, 0.5)
     ->withAudio('bgm.mp3', loop: true, volume: 0.7)
     ->keepSourceAudio()
