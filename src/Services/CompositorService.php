@@ -15,6 +15,8 @@ use B7s\FluentCut\Results\RenderResult;
 use B7s\FluentCut\Support\Clip;
 use B7s\FluentCut\Support\ImageOverlay;
 
+use Symfony\Component\Process\Process;
+use Throwable;
 use function array_key_last;
 use function count;
 use function dirname;
@@ -32,15 +34,16 @@ use function uniqid;
 use function unlink;
 use function usleep;
 
-final class CompositorService
+final readonly class CompositorService
 {
     public function __construct(
-        private readonly FFmpegService $ffmpeg,
+        private FFmpegService $ffmpeg,
     ) {}
 
     /**
      * @param Clip[] $clips
      * @param callable(ProgressInfo): void|null $onProgress
+     * @throws Throwable
      */
     public function render(
         array $clips,
@@ -108,6 +111,7 @@ final class CompositorService
     /**
      * @param Clip[] $clips
      * @param callable(ProgressInfo): void|null $onProgress
+     * @throws Throwable
      */
     private function renderVideo(
         array $clips,
@@ -140,7 +144,7 @@ final class CompositorService
                 $tempFiles, $onProgress, $fps, $totalSegments, $totalDuration,
                 $timeout, $hardwareAccel, $maxConcurrentSegments,
             );
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if ($hardwareAccel !== null && !$forceCpu) {
                 if ($verbose) {
                     error_log('[FluentCut] GPU rendering failed, falling back to CPU: ' . $e->getMessage());
@@ -199,6 +203,7 @@ final class CompositorService
      * @param string[] $tempFiles
      * @param callable(ProgressInfo): void|null $onProgress
      * @return string[]
+     * @throws RenderException
      */
     private function renderSegments(array $clips, int $width, int $height, int $fps, Codec $codec, bool $verbose, array &$tempFiles, ?callable $onProgress, int $clipFps, int $totalSegments, float $totalDuration, int $timeout, ?HardwareAccel $hardwareAccel, int $maxConcurrentSegments = 0): array
     {
@@ -214,6 +219,7 @@ final class CompositorService
      * @param string[] $tempFiles
      * @param callable(ProgressInfo): void $onProgress
      * @return string[]
+     * @throws RenderException
      */
     private function renderSegmentsWithProgress(array $clips, int $width, int $height, int $fps, Codec $codec, bool $verbose, array &$tempFiles, callable $onProgress, int $clipFps, int $totalSegments, float $totalDuration, int $timeout, ?HardwareAccel $hardwareAccel): array
     {
@@ -250,6 +256,7 @@ final class CompositorService
      * @param Clip[] $clips
      * @param string[] $tempFiles
      * @return string[]
+     * @throws RenderException
      */
     private function renderSegmentsParallel(array $clips, int $width, int $height, int $fps, Codec $codec, bool $verbose, array &$tempFiles, int $timeout, ?HardwareAccel $hardwareAccel, int $maxConcurrentSegments = 0): array
     {
@@ -293,7 +300,7 @@ final class CompositorService
     }
 
     /**
-     * @param array<int, array{process: \Symfony\Component\Process\Process, path: string}> $jobs
+     * @param array<int, array{process: Process, path: string}> $jobs
      */
     private function waitForAnyCompleted(array &$jobs): int
     {
@@ -308,8 +315,9 @@ final class CompositorService
     }
 
     /**
-     * @param array<int, array{process: \Symfony\Component\Process\Process, path: string}> $jobs
+     * @param array<int, array{process: Process, path: string}> $jobs
      * @param array<int, string> $results
+     * @throws RenderException
      */
     private function processJobCompletion(array &$jobs, array &$results, int $i): void
     {
@@ -326,6 +334,7 @@ final class CompositorService
 
     /**
      * @return string[]
+     * @throws RenderException
      */
     private function buildSegmentCommand(Clip $clip, int $width, int $height, int $fps, Codec $codec, string $outputPath, ?HardwareAccel $hardwareAccel = null): array
     {
@@ -345,11 +354,9 @@ final class CompositorService
     }
 
     /**
-     * @return array{path: string, command: string[]}
-     */
-    /**
      * @param string[] &$tempFiles
      * @return array{path: string, command: string[]}
+     * @throws RenderException
      */
     private function prepareSegmentJob(Clip $clip, int $index, int $width, int $height, int $fps, Codec $codec, ?HardwareAccel $hardwareAccel, bool $verbose, array &$tempFiles): array
     {
@@ -413,9 +420,7 @@ final class CompositorService
         }
 
         $outputArgs = $useGpu ? $hardwareAccel->gpuOutputArgs($codec) : $codec->defaultOutputArgs();
-        $command = [...$command, ...$outputArgs, '-r', (string) $fps, '-y', $outputPath];
-
-        return $command;
+        return [...$command, ...$outputArgs, '-r', (string) $fps, '-y', $outputPath];
     }
 
     /**
@@ -453,10 +458,10 @@ final class CompositorService
     private function buildImageSegmentCommand(Clip $clip, int $width, int $height, int $fps, Codec $codec, string $outputPath, ?HardwareAccel $hardwareAccel = null): array
     {
         $useGpu = $hardwareAccel !== null && $hardwareAccel->supportsCodec($codec);
-        $useHwaccel = $useGpu && $clip->isVideo() && $hardwareAccel->supportsHwaccelInput();
+        $useHwAccel = $useGpu && $clip->isVideo() && $hardwareAccel->supportsHwaccelInput();
         $command = [$this->ffmpeg->getFFmpegPath()];
 
-        if ($useHwaccel) {
+        if ($useHwAccel) {
             $command = [...$command, ...$hardwareAccel->hwAccelInputArgs()];
         }
 
@@ -490,9 +495,7 @@ final class CompositorService
             $command = [...$command, '-vf', implode(',', $filters)];
         }
 
-        $command = [...$command, ...$codec->defaultOutputArgs(), '-y', $outputPath];
-
-        return $command;
+        return [...$command, ...$codec->defaultOutputArgs(), '-y', $outputPath];
     }
 
     /**
@@ -518,7 +521,7 @@ final class CompositorService
             $enable = '';
             if ($overlay->start > 0.0 || $overlay->end !== null) {
                 $start = $overlay->start;
-                $end = $overlay->end ?? 999999;
+                $end = $overlay->end ?? 999999.0;
                 $enable = ":enable='between(t,{$start},{$end})'";
             }
 
@@ -536,6 +539,7 @@ final class CompositorService
     /**
      * @param string[] $segmentPaths
      * @param string[] $tempFiles
+     * @throws RenderException
      */
     private function concatenateSimple(array $segmentPaths, bool $verbose, array &$tempFiles, int $timeout): string
     {
@@ -575,6 +579,7 @@ final class CompositorService
      * @param string[] $segmentPaths
      * @param string[] $tempFiles
      * @param callable(ProgressInfo): void|null $onProgress
+     * @throws RenderException
      */
     private function applyTransitions(
         array $segmentPaths,
@@ -599,10 +604,7 @@ final class CompositorService
         $finalPath = sys_get_temp_dir() . '/fluentcut_trans_' . uniqid('', true) . '.mp4';
         $tempFiles[] = $finalPath;
 
-        $durations = [];
-        foreach ($segmentPaths as $i => $path) {
-            $durations[$i] = $this->ffmpeg->getDuration($path) ?? 0;
-        }
+        $durations = array_map(fn ($path) =>  $this->ffmpeg->getDuration($path) ?? 0.0, $segmentPaths);
 
         $command = [$this->ffmpeg->getFFmpegPath()];
         foreach ($segmentPaths as $path) {
@@ -672,6 +674,7 @@ final class CompositorService
 
     /**
      * @param callable(ProgressInfo): void|null $onProgress
+     * @throws RenderException
      */
     private function mixAudio(
         string $videoPath,
@@ -696,7 +699,7 @@ final class CompositorService
 
         if ($keepSourceAudio && $this->ffmpeg->hasAudioStream($videoPath)) {
             $command[] = '-filter_complex';
-            $vol = $audioVolume !== null ? $audioVolume : 1.0;
+            $vol = $audioVolume ?? 1.0;
             $command[] = "[0:a]aresample=44100[bg];[1:a]aresample=44100,volume={$vol}[fg];[bg][fg]amix=inputs=2:duration=first[aout]";
             $command = [...$command, '-map', '0:v', '-map', '[aout]'];
         } else {
@@ -788,7 +791,7 @@ final class CompositorService
             }
 
             return $this->buildResult($outputPath);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return RenderResult::failure($e->getMessage());
         } finally {
             foreach ($tempFiles as $tempFile) {
@@ -806,7 +809,7 @@ final class CompositorService
     private function resolveDurations(array $clips): array
     {
         foreach ($clips as $clip) {
-            if ($clip->isVideo() && $clip->duration <= 0) {
+            if ($clip->duration <= 0 && $clip->isVideo()) {
                 $duration = $this->ffmpeg->getDuration($clip->videoPath);
                 if ($duration !== null) {
                     $clip->duration = $duration;
@@ -814,7 +817,7 @@ final class CompositorService
                         $clip->duration -= $clip->start;
                     }
                     if ($clip->end !== null) {
-                        $clip->duration = $clip->end - ($clip->start ?? 0);
+                        $clip->duration = $clip->end - ($clip->start ?? 0.0);
                     }
                 }
             }
@@ -860,7 +863,7 @@ final class CompositorService
             $timeout = (int) ($duration * 120) + 120;
         }
 
-        if ($clip->isImage() && $clip->resizeMode === ResizeMode::ContainBlur) {
+        if ($clip->resizeMode === ResizeMode::ContainBlur && $clip->isImage()) {
             $duration = max(1.0, $clip->duration);
             $adaptive = (int) ($duration * 180) + 120;
             $timeout = max($timeout, $adaptive);
