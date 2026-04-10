@@ -21,6 +21,8 @@ $result = FluentCut::make()
     ->addImage("{$assets}/slide1.jpg", duration: 3, effect: [VideoEffect::Sepia, VideoEffect::Vignette])
     ->addText('Sepia + Vignette', x: 'center', y: 100, fontSize: 36, borderWidth: 2)
     ->fade(0.5)
+    ->addBlack(1)
+    ->fade()
     ->saveTo(__DIR__ . '/output/video-effects.mp4')
     ->render();
 
