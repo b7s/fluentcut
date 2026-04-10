@@ -382,6 +382,13 @@ final class CompositorService
             $filters[] = $clip->resizeMode->toFFmpegFilter($width, $height);
         }
 
+        foreach ($clip->effects as $effect) {
+            $effectFilter = $effect->toFFmpegFilter($width, $height, $clip->duration, $fps);
+            if ($effectFilter !== '') {
+                $filters[] = $effectFilter;
+            }
+        }
+
         foreach ($clip->textOverlays as $textOverlay) {
             $filters[] = $textOverlay->toFFmpegDrawtext($width, $height, $clip->duration);
         }
@@ -432,6 +439,13 @@ final class CompositorService
 
         $filters = [$clip->resizeMode->toFFmpegFilter($width, $height)];
 
+        foreach ($clip->effects as $effect) {
+            $effectFilter = $effect->toFFmpegFilter($width, $height, $clip->duration, $fps);
+            if ($effectFilter !== '') {
+                $filters[] = $effectFilter;
+            }
+        }
+
         foreach ($clip->textOverlays as $textOverlay) {
             $filters[] = $textOverlay->toFFmpegDrawtext($width, $height, $clip->duration);
         }
@@ -473,6 +487,14 @@ final class CompositorService
         $command = [$this->ffmpeg->getFFmpegPath(), '-f', 'lavfi', '-i', "color=c={$clip->backgroundColor}:s={$width}x{$height}:d={$clip->duration}:r={$fps}"];
 
         $filters = [];
+
+        foreach ($clip->effects as $effect) {
+            $effectFilter = $effect->toFFmpegFilter($width, $height, $clip->duration, $fps);
+            if ($effectFilter !== '') {
+                $filters[] = $effectFilter;
+            }
+        }
+
         foreach ($clip->textOverlays as $textOverlay) {
             $filters[] = $textOverlay->toFFmpegDrawtext($width, $height, $clip->duration);
         }

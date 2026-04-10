@@ -5,6 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/../vendor/autoload.php';
 
 use B7s\FluentCut\Enums\Transition;
+use B7s\FluentCut\Enums\VideoEffect;
 use B7s\FluentCut\FluentCut;
 
 echo "Just a moment. This may take some time..." . PHP_EOL . PHP_EOL;
@@ -13,7 +14,7 @@ $result = FluentCut::make()
     ->fullHd()
     ->useGpu()
     ->addVideo(__DIR__ . '/../examples/assets/intro.mp4')
-    ->addImage(__DIR__ . '/../examples/assets/slide3.jpg', duration: 5)
+    ->addImage(__DIR__ . '/../examples/assets/slide3.jpg', duration: 5, effect: VideoEffect::SoftZoom)
     ->addText('Chapter 1', x: 'center', y: 'top', fontSize: 64, borderWidth: 3)
     ->overlayImage(__DIR__ . '/../examples/assets/logo.png', x: '90%', y: '5%', width: 120)
     ->addBlack(0.5)

@@ -22,6 +22,7 @@ Whether you're automating video generation, building media pipelines, or creatin
 - 🖼️ **Image Overlays** - Layer images on top of clips with precise positioning
 - 🎵 **Audio Control** - Add background music, keep source audio, and adjust volume
 - 🔄 **Transitions** - 12 built-in transitions including fades, wipes, slides, and dissolves
+- 🎨 **Video Effects** - 14 built-in visual effects with stackable combinations: soft zoom (Ken Burns), sepia, grayscale, vignette, and more
 - 📐 **Smart Resize** - Four resize modes: contain, contain with blur, cover, and stretch
 - ⚡ **Presets** - One‑call presets for slideshows, social media, GIFs, and web output
 - 🔒 **Type‑Safe** - Full PHP 8.3+ type hints / PHPStan level 6
@@ -32,9 +33,11 @@ Whether you're automating video generation, building media pipelines, or creatin
 ## Easy to use
 
 ```php
+use B7s\FluentCut\Enums\VideoEffect;
+
 $result = FluentCut::make()
     ->fullHd()
-    ->addImage('photo.jpg', duration: 3)
+    ->addImage('photo.jpg', duration: 3, effect: VideoEffect::SoftZoom)
     ->addText('Hello, world!')
     ->saveTo('output.mp4')
     ->render();
@@ -74,10 +77,11 @@ This will verify that PHP 8.3+, FFmpeg, and FFprobe are available and properly c
 
 ```php
 use B7s\FluentCut\FluentCut;
+use B7s\FluentCut\Enums\VideoEffect;
 
 $result = FluentCut::make()
     ->fullHd()
-    ->addImage('slide1.jpg', duration: 3)
+    ->addImage('slide1.jpg', duration: 3, effect: VideoEffect::SoftZoom)
     ->addImage('slide2.jpg', duration: 3)
     ->addImage('slide3.jpg', duration: 2)
     ->fade(0.5)
@@ -147,6 +151,27 @@ $result = FluentCut::make()
     ->addImage('frame3.jpg', duration: 0.5)
     ->addImage('frame4.jpg', duration: 0.5)
     ->saveTo('output/animation.gif')
+    ->render();
+```
+
+### Video Effects
+
+Apply visual effects to individual clips. Pass a single effect or an array — duplicates are automatically removed.
+
+```php
+use B7s\FluentCut\Enums\VideoEffect;
+
+$result = FluentCut::make()
+    ->fullHd()
+    ->addImage('photo1.jpg', duration: 3, effect: VideoEffect::SoftZoom)
+    ->addText('Ken Burns Effect', x: 'center', y: 'bottom', fontSize: 36)
+    ->addImage('photo2.jpg', duration: 3, effect: [VideoEffect::Sepia, VideoEffect::Vignette])
+    ->addText('Sepia + Vignette', x: 'center', y: 'bottom', fontSize: 36)
+    ->addImage('photo3.jpg', duration: 3)
+    ->effect(VideoEffect::Grayscale, VideoEffect::Sharpen)
+    ->addImage('photo4.jpg', duration: 3)
+    ->fade(0.5)
+    ->saveTo('output/effects-demo.mp4')
     ->render();
 ```
 
@@ -263,6 +288,12 @@ Add video files to the composition. Optionally trim by specifying start and end 
 // Trim a segment
 ->addVideo('clip.mp4', start: 5.0, end: 15.0)
 
+// With a visual effect
+->addVideo('clip.mp4', effect: VideoEffect::Grayscale)
+
+// With multiple effects
+->addVideo('clip.mp4', effect: [VideoEffect::Grayscale, VideoEffect::Vignette])
+
 // Alias
 ->fromVideo('clip.mp4', start: 5.0, end: 15.0)
 ```
@@ -275,8 +306,17 @@ Add still images as clips with a specified duration. Perfect for building slides
 // Single image (1 second default)
 ->addImage('photo.jpg', duration: 3)
 
+// With a single effect
+->addImage('photo.jpg', duration: 3, effect: VideoEffect::SoftZoom)
+
+// With multiple effects
+->addImage('photo.jpg', duration: 3, effect: [VideoEffect::SoftZoom, VideoEffect::Vignette])
+
 // Multiple images at once
 ->addImages(['img1.jpg', 'img2.jpg', 'img3.jpg'], duration: 2)
+
+// Multiple images with effects
+->addImages(['img1.jpg', 'img2.jpg'], duration: 2, effect: [VideoEffect::Sepia, VideoEffect::Sharpen])
 ```
 
 ### Color / Background Clips
@@ -287,6 +327,10 @@ Add solid-color clips to create title screens, interstitials, or backgrounds.
 // Custom color
 ->addColor('#1a1a2e', duration: 2)
 ->addColor('red', duration: 1)
+
+// With effects
+->addColor('black', duration: 2, effect: VideoEffect::Vignette)
+->addColor('black', duration: 2, effect: [VideoEffect::Brightness, VideoEffect::Vignette])
 
 // Presets
 ->addBlack(0.5)  // Half-second black screen
@@ -373,6 +417,49 @@ use B7s\FluentCut\Enums\Transition;
 ```
 
 **Available transitions:** `Fade`, `FadeBlack`, `FadeWhite`, `WipeLeft`, `WipeRight`, `WipeUp`, `WipeDown`, `SlideLeft`, `SlideRight`, `Dissolve`, `None`
+
+### Video Effects
+
+Apply one or more visual effects per clip. Pass a single `VideoEffect`, an array of effects, or use the variadic `effect()` method. Duplicates and `None` are automatically removed.
+
+```php
+use B7s\FluentCut\Enums\VideoEffect;
+
+// Single effect when adding a clip
+->addImage('photo.jpg', duration: 3, effect: VideoEffect::SoftZoom)
+->addVideo('clip.mp4', effect: VideoEffect::Grayscale)
+->addColor('black', duration: 2, effect: VideoEffect::Vignette)
+
+// Multiple effects via array
+->addImage('photo.jpg', duration: 3, effect: [VideoEffect::SoftZoom, VideoEffect::Vignette])
+->addImages(['a.jpg', 'b.jpg'], duration: 2, effect: [VideoEffect::Sepia, VideoEffect::Sharpen])
+
+// Variadic effect() on the last clip (merges with existing effects)
+->addImage('photo.jpg', duration: 3)
+->effect(VideoEffect::Sepia, VideoEffect::Sharpen)
+
+// No effect (default)
+->addImage('photo.jpg', duration: 3)
+```
+
+**Available effects:**
+
+| Effect | Description |
+|---|---|
+| `VideoEffect::None` | No effect (default) |
+| `VideoEffect::SoftZoom` | Slow zoom in (Ken Burns effect) |
+| `VideoEffect::Grayscale` | Convert to grayscale |
+| `VideoEffect::Sepia` | Sepia tone (vintage warm look) |
+| `VideoEffect::Blur` | Gaussian blur |
+| `VideoEffect::Sharpen` | Sharpen details |
+| `VideoEffect::Vignette` | Dark edges vignette |
+| `VideoEffect::Brightness` | Increase brightness |
+| `VideoEffect::Contrast` | Increase contrast |
+| `VideoEffect::Saturate` | Boost color saturation |
+| `VideoEffect::Desaturate` | Reduce color saturation |
+| `VideoEffect::Negate` | Invert colors |
+| `VideoEffect::EdgeDetect` | Edge detection outline |
+| `VideoEffect::Pixelate` | Pixelation mosaic |
 
 ### Resize Modes
 

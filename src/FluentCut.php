@@ -8,6 +8,7 @@ use B7s\FluentCut\Enums\Codec;
 use B7s\FluentCut\Enums\HardwareAccel;
 use B7s\FluentCut\Enums\ResizeMode;
 use B7s\FluentCut\Enums\Transition;
+use B7s\FluentCut\Enums\VideoEffect;
 use B7s\FluentCut\Exceptions\RenderException;
 use B7s\FluentCut\Results\ProgressInfo;
 use B7s\FluentCut\Results\RenderResult;
@@ -161,32 +162,34 @@ class FluentCut
     // ADD VIDEO CLIPS
     // =========================================================================
 
-    public function addVideo(string $path, ?float $start = null, ?float $end = null): self
+    public function addVideo(string $path, ?float $start = null, ?float $end = null, VideoEffect|array|null $effect = null): self
     {
         $this->assertFileExists($path);
 
         $clip = Clip::fromVideo($path, $start, $end);
         $clip->resizeMode = $this->resizeMode;
+        $clip->effects = self::normalizeEffects($effect);
         $this->clips[] = $clip;
 
         return $this;
     }
 
-    public function fromVideo(string $path, ?float $start = null, ?float $end = null): self
+    public function fromVideo(string $path, ?float $start = null, ?float $end = null, VideoEffect|array|null $effect = null): self
     {
-        return $this->addVideo($path, $start, $end);
+        return $this->addVideo($path, $start, $end, $effect);
     }
 
     // =========================================================================
     // ADD IMAGE CLIPS
     // =========================================================================
 
-    public function addImage(string $path, float $duration = 1.0): self
+    public function addImage(string $path, float $duration = 1.0, VideoEffect|array|null $effect = null): self
     {
         $this->assertFileExists($path);
 
         $clip = Clip::fromImage($path, $duration);
         $clip->resizeMode = $this->resizeMode;
+        $clip->effects = self::normalizeEffects($effect);
         $this->clips[] = $clip;
 
         return $this;
@@ -195,10 +198,10 @@ class FluentCut
     /**
      * @param string[] $paths
      */
-    public function addImages(array $paths, float $duration = 1.0): self
+    public function addImages(array $paths, float $duration = 1.0, VideoEffect|array|null $effect = null): self
     {
         foreach ($paths as $path) {
-            $this->addImage($path, $duration);
+            $this->addImage($path, $duration, $effect);
         }
 
         return $this;
@@ -208,9 +211,11 @@ class FluentCut
     // ADD COLOR / BACKGROUND CLIPS
     // =========================================================================
 
-    public function addColor(string $color, float $duration = 1.0): self
+    public function addColor(string $color, float $duration = 1.0, VideoEffect|array|null $effect = null): self
     {
-        $this->clips[] = Clip::fromColor($color, $duration);
+        $clip = Clip::fromColor($color, $duration);
+        $clip->effects = self::normalizeEffects($effect);
+        $this->clips[] = $clip;
 
         return $this;
     }
@@ -272,6 +277,24 @@ class FluentCut
     }
 
     
+
+    // =========================================================================
+    // VIDEO EFFECTS (applied to the last clip)
+    // =========================================================================
+
+    /**
+     * Apply one or more visual effects to the most recently added clip.
+     *
+     * @param VideoEffect ...$effects One or more effects to apply (duplicates removed)
+     */
+    public function effect(VideoEffect ...$effects): self
+    {
+        $clip = $this->lastClip();
+        $merged = array_unique([...$clip->effects, ...$effects], SORT_REGULAR);
+        $clip->effects = array_values(array_filter($merged, fn(VideoEffect $e) => $e !== VideoEffect::None));
+
+        return $this;
+    }
 
     // =========================================================================
     // IMAGE OVERLAYS (applied to the last clip)
@@ -623,5 +646,23 @@ class FluentCut
     private static function sharedFFmpegService(): FFmpegService
     {
         return self::$sharedFFmpeg ??= new FFmpegService();
+    }
+
+    /**
+     * @return VideoEffect[]
+     */
+    private static function normalizeEffects(VideoEffect|array|null $effects): array
+    {
+        if ($effects === null) {
+            return [];
+        }
+
+        if ($effects instanceof VideoEffect) {
+            $effects = [$effects];
+        }
+
+        $unique = array_unique($effects, SORT_REGULAR);
+
+        return array_values(array_filter($unique, fn(VideoEffect $e) => $e !== VideoEffect::None));
     }
 }

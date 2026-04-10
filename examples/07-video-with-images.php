@@ -5,12 +5,13 @@ declare(strict_types=1);
 require __DIR__ . '/../vendor/autoload.php';
 
 use B7s\FluentCut\Enums\Transition;
+use B7s\FluentCut\Enums\VideoEffect;
 use B7s\FluentCut\FluentCut;
 
 $result = FluentCut::make()
     ->fullHd()
     ->addVideo(__DIR__ . '/../examples/assets/intro.mp4')
-    ->addImage(__DIR__ . '/../examples/assets/slide3.jpg.jpg', duration: 1)
+    ->addImage(__DIR__ . '/../examples/assets/slide3.jpg.jpg', duration: 1, effect: VideoEffect::Sepia)
     ->addText('Part 2', x: 'center', y: 'center', fontSize: 72, fontColor: 'yellow')
     ->addVideo(__DIR__ . '/../examples/assets/outro.mp4')
     ->fade(0.5)

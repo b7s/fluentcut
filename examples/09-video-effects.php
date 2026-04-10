@@ -1,0 +1,33 @@
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use B7s\FluentCut\Enums\VideoEffect;
+use B7s\FluentCut\FluentCut;
+
+$assets = __DIR__ . '/../examples/assets';
+
+$result = FluentCut::make()
+    ->fullHd()
+    ->addImage("{$assets}/slide1.jpg", duration: 3, effect: [VideoEffect::SoftZoom, VideoEffect::EdgeDetect])
+    ->addText('Soft Zoom', x: 'center', y: 'bottom', fontSize: 36, borderWidth: 2)
+    ->addImage("{$assets}/slide2.jpg", duration: 3, effect: VideoEffect::Sepia)
+    ->addText('Sepia', x: 'center', y: 'bottom', fontSize: 36, borderWidth: 2)
+    ->addImage("{$assets}/slide3.jpg", duration: 3)
+    ->effect(VideoEffect::Grayscale, VideoEffect::Sharpen, VideoEffect::SoftZoom)
+    ->addText('Grayscale + Sharpen + Zoom', x: 'center', y: 'bottom', fontSize: 36, borderWidth: 2)
+    ->addImage("{$assets}/slide1.jpg", duration: 3, effect: [VideoEffect::Sepia, VideoEffect::Vignette])
+    ->addText('Sepia + Vignette', x: 'center', y: 'bottom', fontSize: 36, borderWidth: 2)
+    ->fade(0.5)
+    ->saveTo(__DIR__ . '/output/video-effects.mp4')
+    ->render();
+
+if ($result->isSuccessful()) {
+    echo "Created: {$result->outputPath}" . PHP_EOL;
+    echo "Duration: {$result->getFormattedDuration()}" . PHP_EOL;
+    echo "Size: {$result->getFormattedSize()}" . PHP_EOL;
+} else {
+    echo "Error: {$result->error}" . PHP_EOL;
+}

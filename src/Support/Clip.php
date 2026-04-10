@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace B7s\FluentCut\Support;
 
 use B7s\FluentCut\Enums\ResizeMode;
+use B7s\FluentCut\Enums\VideoEffect;
 use B7s\FluentCut\Exceptions\RenderException;
 
 use function preg_match;
@@ -26,6 +27,9 @@ final class Clip
     public ?float $end = null;
     public ?string $backgroundColor = null;
     public ResizeMode $resizeMode;
+
+    /** @var VideoEffect[] */
+    public array $effects = [];
 
     /** @var TextOverlay[] */
     public array $textOverlays = [];
