@@ -181,7 +181,7 @@ final class CompositorService
         }
 
         if ($needsAudio && !$needsTransitions) {
-            $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . uniqid() . '.mp4';
+            $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . uniqid('', true) . '.mp4';
             $tempFiles[] = $mixedPath;
             $this->mixAudio($finalPath, $audioPath, $mixedPath, $loopAudio, $audioVolume, $keepSourceAudio, $verbose, $onProgress, $fps, $totalDuration, $timeout);
             $finalPath = $mixedPath;
@@ -221,17 +221,10 @@ final class CompositorService
         $segmentIndex = 0;
 
         foreach ($clips as $i => $clip) {
-            $segmentPath = sys_get_temp_dir() . '/fluentcut_seg_' . $i . '_' . uniqid() . '.mp4';
-            $tempFiles[] = $segmentPath;
-
-            $command = $this->buildSegmentCommand($clip, $width, $height, $fps, $codec, $segmentPath, $hardwareAccel);
-
-            if ($verbose) {
-                error_log("[FluentCut] Segment {$i}: " . implode(' ', $command));
-            }
+            $job = $this->prepareSegmentJob($clip, $i, $width, $height, $fps, $codec, $hardwareAccel, $verbose, $tempFiles);
 
             $process = $this->ffmpeg->runWithProgress(
-                command: $command,
+                command: $job['command'],
                 onProgress: $onProgress,
                 totalDuration: $clip->duration,
                 fps: $clipFps,
@@ -245,8 +238,8 @@ final class CompositorService
                 throw RenderException::ffmpegError($process->getErrorOutput());
             }
 
-            $segmentPaths[] = $segmentPath;
-            $this->ffmpeg->invalidateProbeCache($segmentPath);
+            $segmentPaths[] = $job['path'];
+            $this->ffmpeg->invalidateProbeCache($job['path']);
             $segmentIndex++;
         }
 
@@ -273,18 +266,11 @@ final class CompositorService
                 $activeCount--;
             }
 
-            $segmentPath = sys_get_temp_dir() . '/fluentcut_seg_' . $i . '_' . uniqid() . '.mp4';
-            $tempFiles[] = $segmentPath;
-
-            $command = $this->buildSegmentCommand($clip, $width, $height, $fps, $codec, $segmentPath, $hardwareAccel);
-
-            if ($verbose) {
-                error_log("[FluentCut] Segment {$i}: " . implode(' ', $command));
-            }
+            $job = $this->prepareSegmentJob($clip, $i, $width, $height, $fps, $codec, $hardwareAccel, $verbose, $tempFiles);
 
             $jobs[$i] = [
-                'process' => $this->ffmpeg->runAsync($command, $this->estimateSegmentTimeout($clip, $timeout)),
-                'path' => $segmentPath,
+                'process' => $this->ffmpeg->runAsync($job['command'], $this->estimateSegmentTimeout($clip, $timeout)),
+                'path' => $job['path'],
             ];
             $activeCount++;
         }
@@ -359,28 +345,32 @@ final class CompositorService
     }
 
     /**
+     * @return array{path: string, command: string[]}
+     */
+    /**
+     * @param string[] &$tempFiles
+     * @return array{path: string, command: string[]}
+     */
+    private function prepareSegmentJob(Clip $clip, int $index, int $width, int $height, int $fps, Codec $codec, ?HardwareAccel $hardwareAccel, bool $verbose, array &$tempFiles): array
+    {
+        $segmentPath = sys_get_temp_dir() . '/fluentcut_seg_' . $index . '_' . uniqid('', true) . '.mp4';
+        $tempFiles[] = $segmentPath;
+
+        $command = $this->buildSegmentCommand($clip, $width, $height, $fps, $codec, $segmentPath, $hardwareAccel);
+
+        if ($verbose) {
+            error_log("[FluentCut] Segment {$index}: " . implode(' ', $command));
+        }
+
+        return ['path' => $segmentPath, 'command' => $command];
+    }
+
+    /**
      * @return string[]
      */
-    private function buildVideoSegmentCommand(Clip $clip, int $width, int $height, int $fps, Codec $codec, string $outputPath, ?HardwareAccel $hardwareAccel = null): array
+    private function collectClipFilters(Clip $clip, int $width, int $height, int $fps): array
     {
-        $useGpu = $hardwareAccel !== null && $hardwareAccel->supportsCodec($codec) && $clip->isVideo() && $hardwareAccel->supportsHwaccelInput();
-        $command = [$this->ffmpeg->getFFmpegPath()];
-
-        if ($clip->start !== null) {
-            $command = [...$command, '-ss', (string) $clip->start];
-        }
-
-        $command = [...$command, '-i', $clip->videoPath];
-
-        if ($clip->end !== null) {
-            $command = [...$command, '-t', (string) ($clip->end - ($clip->start ?? 0))];
-        }
-
         $filters = [];
-
-        if ($codec->isReEncode()) {
-            $filters[] = $clip->resizeMode->toFFmpegFilter($width, $height);
-        }
 
         foreach ($clip->effects as $effect) {
             $effectFilter = $effect->toFFmpegFilter($width, $height, $clip->duration, $fps);
@@ -393,6 +383,16 @@ final class CompositorService
             $filters[] = $textOverlay->toFFmpegDrawtext($width, $height, $clip->duration);
         }
 
+        return $filters;
+    }
+
+    /**
+     * @param string[] $command
+     * @param string[] $filters
+     * @return string[]
+     */
+    private function appendOverlaysFiltersAndOutput(array $command, Clip $clip, array $filters, int $width, int $height, int $fps, Codec $codec, string $outputPath, bool $useGpu, ?HardwareAccel $hardwareAccel): array
+    {
         $hasImageOverlays = !empty($clip->imageOverlays);
         if ($hasImageOverlays) {
             foreach ($clip->imageOverlays as $overlay) {
@@ -421,6 +421,35 @@ final class CompositorService
     /**
      * @return string[]
      */
+    private function buildVideoSegmentCommand(Clip $clip, int $width, int $height, int $fps, Codec $codec, string $outputPath, ?HardwareAccel $hardwareAccel = null): array
+    {
+        $useGpu = $hardwareAccel !== null && $hardwareAccel->supportsCodec($codec) && $clip->isVideo() && $hardwareAccel->supportsHwaccelInput();
+        $command = [$this->ffmpeg->getFFmpegPath()];
+
+        if ($clip->start !== null) {
+            $command = [...$command, '-ss', (string) $clip->start];
+        }
+
+        $command = [...$command, '-i', $clip->videoPath];
+
+        if ($clip->end !== null) {
+            $command = [...$command, '-t', (string) ($clip->end - ($clip->start ?? 0))];
+        }
+
+        $filters = [];
+
+        if ($codec->isReEncode()) {
+            $filters[] = $clip->resizeMode->toFFmpegFilter($width, $height);
+        }
+
+        $filters = [...$filters, ...$this->collectClipFilters($clip, $width, $height, $fps)];
+
+        return $this->appendOverlaysFiltersAndOutput($command, $clip, $filters, $width, $height, $fps, $codec, $outputPath, $useGpu, $hardwareAccel);
+    }
+
+    /**
+     * @return string[]
+     */
     private function buildImageSegmentCommand(Clip $clip, int $width, int $height, int $fps, Codec $codec, string $outputPath, ?HardwareAccel $hardwareAccel = null): array
     {
         $useGpu = $hardwareAccel !== null && $hardwareAccel->supportsCodec($codec);
@@ -437,40 +466,9 @@ final class CompositorService
             $command = [...$command, '-t', (string) $clip->duration];
         }
 
-        $filters = [$clip->resizeMode->toFFmpegFilter($width, $height)];
+        $filters = [$clip->resizeMode->toFFmpegFilter($width, $height), ...$this->collectClipFilters($clip, $width, $height, $fps)];
 
-        foreach ($clip->effects as $effect) {
-            $effectFilter = $effect->toFFmpegFilter($width, $height, $clip->duration, $fps);
-            if ($effectFilter !== '') {
-                $filters[] = $effectFilter;
-            }
-        }
-
-        foreach ($clip->textOverlays as $textOverlay) {
-            $filters[] = $textOverlay->toFFmpegDrawtext($width, $height, $clip->duration);
-        }
-
-        $hasImageOverlays = !empty($clip->imageOverlays);
-        if ($hasImageOverlays) {
-            foreach ($clip->imageOverlays as $overlay) {
-                $command = [...$command, '-i', $overlay->path];
-            }
-        }
-
-        foreach ($clip->audioPaths as $audioFile) {
-            $command = [...$command, '-i', $audioFile];
-        }
-
-        if ($hasImageOverlays) {
-            $filterChain = implode(',', $filters);
-            $command = [...$command, '-filter_complex', $this->buildOverlayFilterComplex($clip->imageOverlays, $filterChain, $width, $height)];
-            $command = [...$command, '-map', '[vout]'];
-        } else {
-            $command = [...$command, '-vf', implode(',', $filters)];
-        }
-
-        $outputArgs = $useGpu ? $hardwareAccel->gpuOutputArgs($codec) : $codec->defaultOutputArgs();
-        $command = [...$command, ...$outputArgs, '-r', (string) $fps, '-y', $outputPath];
+        $command = $this->appendOverlaysFiltersAndOutput($command, $clip, $filters, $width, $height, $fps, $codec, $outputPath, $useGpu, $hardwareAccel);
 
         if (!empty($clip->audioPaths)) {
             $command[] = '-shortest';
@@ -486,18 +484,7 @@ final class CompositorService
     {
         $command = [$this->ffmpeg->getFFmpegPath(), '-f', 'lavfi', '-i', "color=c={$clip->backgroundColor}:s={$width}x{$height}:d={$clip->duration}:r={$fps}"];
 
-        $filters = [];
-
-        foreach ($clip->effects as $effect) {
-            $effectFilter = $effect->toFFmpegFilter($width, $height, $clip->duration, $fps);
-            if ($effectFilter !== '') {
-                $filters[] = $effectFilter;
-            }
-        }
-
-        foreach ($clip->textOverlays as $textOverlay) {
-            $filters[] = $textOverlay->toFFmpegDrawtext($width, $height, $clip->duration);
-        }
+        $filters = $this->collectClipFilters($clip, $width, $height, $fps);
 
         if (!empty($filters)) {
             $command = [...$command, '-vf', implode(',', $filters)];
@@ -552,7 +539,7 @@ final class CompositorService
      */
     private function concatenateSimple(array $segmentPaths, bool $verbose, array &$tempFiles, int $timeout): string
     {
-        $concatListPath = sys_get_temp_dir() . '/fluentcut_concat_' . uniqid() . '.txt';
+        $concatListPath = sys_get_temp_dir() . '/fluentcut_concat_' . uniqid('', true) . '.txt';
         $tempFiles[] = $concatListPath;
 
         $listContent = '';
@@ -561,7 +548,7 @@ final class CompositorService
         }
         file_put_contents($concatListPath, $listContent);
 
-        $finalPath = sys_get_temp_dir() . '/fluentcut_concat_' . uniqid() . '.mp4';
+        $finalPath = sys_get_temp_dir() . '/fluentcut_concat_' . uniqid('', true) . '.mp4';
         $tempFiles[] = $finalPath;
 
         $command = [
@@ -609,7 +596,7 @@ final class CompositorService
         int $timeout = 0,
     ): string {
         $count = count($segmentPaths);
-        $finalPath = sys_get_temp_dir() . '/fluentcut_trans_' . uniqid() . '.mp4';
+        $finalPath = sys_get_temp_dir() . '/fluentcut_trans_' . uniqid('', true) . '.mp4';
         $tempFiles[] = $finalPath;
 
         $durations = [];
@@ -673,7 +660,7 @@ final class CompositorService
         $this->ffmpeg->invalidateProbeCache($finalPath);
 
         if ($audioPath !== null) {
-            $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . uniqid() . '.mp4';
+            $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . uniqid('', true) . '.mp4';
             $tempFiles[] = $mixedPath;
             $this->mixAudio($finalPath, $audioPath, $mixedPath, $loopAudio, $audioVolume, $keepSourceAudio, $verbose, $onProgress, $clipFps, $totalDuration, $timeout);
 
@@ -749,7 +736,7 @@ final class CompositorService
     {
         $tempFiles = [];
         try {
-            $tempVideoPath = sys_get_temp_dir() . '/fluentcut_temp_' . uniqid() . '.mp4';
+            $tempVideoPath = sys_get_temp_dir() . '/fluentcut_temp_' . uniqid('', true) . '.mp4';
             $tempFiles[] = $tempVideoPath;
 
             $videoResult = $this->renderVideo(
@@ -765,7 +752,7 @@ final class CompositorService
                 return $videoResult;
             }
 
-            $palettePath = sys_get_temp_dir() . '/fluentcut_palette_' . uniqid() . '.png';
+            $palettePath = sys_get_temp_dir() . '/fluentcut_palette_' . uniqid('', true) . '.png';
             $tempFiles[] = $palettePath;
 
             $process = $this->ffmpeg->run([
