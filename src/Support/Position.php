@@ -65,6 +65,40 @@ final readonly class Position
             : $this->y;
     }
 
+    public function toFFmpegDrawtextX(): string
+    {
+        if ($this->x === self::CENTER) {
+            return '(w-text_w)/2';
+        }
+
+        if ($this->x === self::EDGE_END) {
+            return 'w-text_w';
+        }
+
+        if ($this->isPercentX) {
+            return "w*{$this->x}/100";
+        }
+
+        return (string) $this->x;
+    }
+
+    public function toFFmpegDrawtextY(): string
+    {
+        if ($this->y === self::CENTER) {
+            return '(h-text_h)/2';
+        }
+
+        if ($this->y === self::EDGE_END) {
+            return 'h-text_h';
+        }
+
+        if ($this->isPercentY) {
+            return "h*{$this->y}/100";
+        }
+
+        return (string) $this->y;
+    }
+
     private static function parseValue(int|string $value): int
     {
         if (is_int($value)) {

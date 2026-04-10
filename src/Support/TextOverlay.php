@@ -30,8 +30,8 @@ final readonly class TextOverlay
 
     public function toFFmpegDrawtext(int $canvasW, int $canvasH, float $clipDuration): string
     {
-        $x = $this->position->resolveX($canvasW);
-        $y = $this->position->resolveY($canvasH);
+        $x = $this->position->toFFmpegDrawtextX();
+        $y = $this->position->toFFmpegDrawtextY();
 
         $params = [
             "text='" . self::escape($this->text) . "'",
