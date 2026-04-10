@@ -9,17 +9,18 @@ use B7s\FluentCut\Enums\Format;
 use B7s\FluentCut\Enums\HardwareAccel;
 use B7s\FluentCut\Enums\ResizeMode;
 use B7s\FluentCut\Enums\Transition;
+use B7s\FluentCut\Exceptions\FFmpegNotFoundException;
 use B7s\FluentCut\Exceptions\RenderException;
 use B7s\FluentCut\Results\ProgressInfo;
 use B7s\FluentCut\Results\RenderResult;
 use B7s\FluentCut\Support\Clip;
 use B7s\FluentCut\Support\ImageOverlay;
 
+use JsonException;
+use Random\RandomException;
 use RuntimeException;
 use Throwable;
-use function array_key_last;
 use function count;
-use function dirname;
 use function file_exists;
 use function file_put_contents;
 use function implode;
@@ -31,9 +32,9 @@ use function rename;
 use function sprintf;
 use function str_replace;
 use function sys_get_temp_dir;
-use function uniqid;
 use function unlink;
-use function usleep;
+use function bin2hex;
+use function random_bytes;
 
 final class CompositorService
 {
@@ -54,6 +55,14 @@ final class CompositorService
         if ($this->cacheEnabled && !is_dir($this->cacheDir) && !mkdir($concurrentDirectory = $this->cacheDir, 0755, true) && !is_dir($concurrentDirectory)) {
             throw new RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
         }
+    }
+
+    /**
+     * @throws RandomException
+     */
+    private static function randomName(): string
+    {
+        return bin2hex(random_bytes(16));
     }
 
     /**
@@ -202,7 +211,7 @@ final class CompositorService
         }
 
         if ($needsAudio && !$needsTransitions) {
-            $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . uniqid('', true) . '.mp4';
+            $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . self::randomName() . '.mp4';
             $tempFiles[] = $mixedPath;
             $this->mixAudio($finalPath, $audioPath, $mixedPath, $loopAudio, $audioVolume, $keepSourceAudio, $verbose, $onProgress, $fps, $totalDuration, $timeout);
             $finalPath = $mixedPath;
@@ -224,7 +233,7 @@ final class CompositorService
      * @param string[] $tempFiles
      * @param callable(ProgressInfo): void|null $onProgress
      * @return string[]
-     * @throws RenderException
+     * @throws RenderException|RandomException
      */
     private function renderSegments(array $clips, int $width, int $height, int $fps, Codec $codec, bool $verbose, array &$tempFiles, ?callable $onProgress, int $clipFps, int $totalSegments, float $totalDuration, int $timeout, ?HardwareAccel $hardwareAccel, int $maxConcurrentSegments = 0): array
     {
@@ -233,7 +242,7 @@ final class CompositorService
         foreach ($clips as $index => $clip) {
             $cachedPath = $this->getCachedSegment($clip, $width, $height, $fps);
             if ($cachedPath !== null) {
-                $tempPath = sys_get_temp_dir() . '/fluentcut_seg_' . $index . '_' . uniqid('', true) . '.mp4';
+                $tempPath = sys_get_temp_dir() . '/fluentcut_seg_' . $index . '_' . self::randomName() . '.mp4';
                 $tempFiles[] = $tempPath;
                 @copy($cachedPath, $tempPath);
                 $segmentPaths[] = $tempPath;
@@ -265,7 +274,19 @@ final class CompositorService
     }
 
     /**
-     * @param string[] $tempFiles
+     * @param array $command
+     * @param Clip $clip
+     * @param int $width
+     * @param int $height
+     * @param int $fps
+     * @param string $outputPath
+     * @param callable|null $onProgress
+     * @param int $clipFps
+     * @param int $index
+     * @param int $totalSegments
+     * @param float $totalDuration
+     * @param int $timeout
+     * @return string
      * @throws RenderException
      */
     private function executeSegmentRender(array $command, Clip $clip, int $width, int $height, int $fps, string $outputPath, ?callable $onProgress, int $clipFps, int $index, int $totalSegments, float $totalDuration, int $timeout): string
@@ -317,11 +338,11 @@ final class CompositorService
     /**
      * @param string[] &$tempFiles
      * @return array{path: string, command: string[]}
-     * @throws RenderException
+     * @throws RenderException|RandomException
      */
     private function prepareSegmentJob(Clip $clip, int $index, int $width, int $height, int $fps, Codec $codec, ?HardwareAccel $hardwareAccel, bool $verbose, array &$tempFiles): array
     {
-        $segmentPath = sys_get_temp_dir() . '/fluentcut_seg_' . $index . '_' . uniqid('', true) . '.mp4';
+        $segmentPath = sys_get_temp_dir() . '/fluentcut_seg_' . $index . '_' . self::randomName() . '.mp4';
         $tempFiles[] = $segmentPath;
 
         $command = $this->buildSegmentCommand($clip, $width, $height, $fps, $codec, $segmentPath, $hardwareAccel);
@@ -399,7 +420,7 @@ final class CompositorService
         $command = [...$command, '-i', $clip->videoPath];
 
         if ($clip->end !== null) {
-            $command = [...$command, '-t', (string) ($clip->end - ($clip->start ?? 0))];
+            $command = [...$command, '-t', (string) ($clip->end - ($clip->start ?? 0.0))];
         }
 
         $filters = [];
@@ -500,11 +521,12 @@ final class CompositorService
     /**
      * @param string[] $segmentPaths
      * @param string[] $tempFiles
-     * @throws RenderException
+     * @throws RenderException|RandomException
+     * @throws FFmpegNotFoundException
      */
     private function concatenateSimple(array $segmentPaths, bool $verbose, array &$tempFiles, int $timeout): string
     {
-        $concatListPath = sys_get_temp_dir() . '/fluentcut_concat_' . uniqid('', true) . '.txt';
+        $concatListPath = sys_get_temp_dir() . '/fluentcut_concat_' . self::randomName() . '.txt';
         $tempFiles[] = $concatListPath;
 
         $listContent = '';
@@ -513,7 +535,7 @@ final class CompositorService
         }
         file_put_contents($concatListPath, $listContent);
 
-        $finalPath = sys_get_temp_dir() . '/fluentcut_concat_' . uniqid('', true) . '.mp4';
+        $finalPath = sys_get_temp_dir() . '/fluentcut_concat_' . self::randomName() . '.mp4';
         $tempFiles[] = $finalPath;
 
         $command = [
@@ -541,6 +563,7 @@ final class CompositorService
      * @param string[] $tempFiles
      * @param callable(ProgressInfo): void|null $onProgress
      * @throws RenderException
+     * @throws RandomException|FFmpegNotFoundException
      */
     private function applyTransitions(
         array $segmentPaths,
@@ -562,8 +585,10 @@ final class CompositorService
         int $timeout = 0,
     ): string {
         $count = count($segmentPaths);
-        $finalPath = sys_get_temp_dir() . '/fluentcut_trans_' . uniqid('', true) . '.mp4';
+        $finalPath = sys_get_temp_dir() . '/fluentcut_trans_' . self::randomName() . '.mp4';
         $tempFiles[] = $finalPath;
+
+
 
         $durations = array_map(fn ($path) =>  $this->ffmpeg->getDuration($path) ?? 0.0, $segmentPaths);
 
@@ -623,7 +648,7 @@ final class CompositorService
         $this->ffmpeg->invalidateProbeCache($finalPath);
 
         if ($audioPath !== null) {
-            $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . uniqid('', true) . '.mp4';
+            $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . self::randomName() . '.mp4';
             $tempFiles[] = $mixedPath;
             $this->mixAudio($finalPath, $audioPath, $mixedPath, $loopAudio, $audioVolume, $keepSourceAudio, $verbose, $onProgress, $clipFps, $totalDuration, $timeout);
 
@@ -636,6 +661,8 @@ final class CompositorService
     /**
      * @param callable(ProgressInfo): void|null $onProgress
      * @throws RenderException
+     * @throws FFmpegNotFoundException
+     * @throws JsonException
      */
     private function mixAudio(
         string $videoPath,
@@ -700,7 +727,7 @@ final class CompositorService
     {
         $tempFiles = [];
         try {
-            $tempVideoPath = sys_get_temp_dir() . '/fluentcut_temp_' . uniqid('', true) . '.mp4';
+            $tempVideoPath = sys_get_temp_dir() . '/fluentcut_temp_' . self::randomName() . '.mp4';
             $tempFiles[] = $tempVideoPath;
 
             $videoResult = $this->renderVideo(
@@ -716,7 +743,7 @@ final class CompositorService
                 return $videoResult;
             }
 
-            $palettePath = sys_get_temp_dir() . '/fluentcut_palette_' . uniqid('', true) . '.png';
+            $palettePath = sys_get_temp_dir() . '/fluentcut_palette_' . self::randomName() . '.png';
             $tempFiles[] = $palettePath;
 
             $process = $this->ffmpeg->run([
@@ -791,6 +818,10 @@ final class CompositorService
         return $clips;
     }
 
+    /**
+     * @throws FFmpegNotFoundException
+     * @throws JsonException
+     */
     private function buildResult(string $outputPath): RenderResult
     {
         $info = $this->ffmpeg->probe($outputPath);
@@ -880,10 +911,10 @@ final class CompositorService
         return null;
     }
 
-    private function saveCachedSegment(string $sourcePath, Clip $clip, int $width, int $height, int $fps): string
+    private function saveCachedSegment(string $sourcePath, Clip $clip, int $width, int $height, int $fps): void
     {
         if (!$this->cacheEnabled) {
-            return $sourcePath;
+            return;
         }
 
         $cacheKey = $clip->cacheKey($width, $height, $fps);
@@ -892,7 +923,5 @@ final class CompositorService
         if (!file_exists($cachedPath)) {
             @copy($sourcePath, $cachedPath);
         }
-
-        return $cachedPath;
     }
 }

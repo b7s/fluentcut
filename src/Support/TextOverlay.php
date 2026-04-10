@@ -10,8 +10,8 @@ use function str_replace;
 
 final readonly class TextOverlay
 {
-    private const ESCAPE_FROM = ['\\', "'", '"', ':', '%', '[', ']', ';', '{', '}'];
-    private const ESCAPE_TO = ['\\\\', "\\'", '\\"', '\\:', '%%', '\\[', '\\]', '\\;', '\\{', '\\}'];
+    private const array ESCAPE_FROM = ['\\', "'", '"', ':', '%', '[', ']', ';', '{', '}'];
+    private const array ESCAPE_TO = ['\\\\', "\\'", '\\"', '\\:', '%%', '\\[', '\\]', '\\;', '\\{', '\\}'];
 
     public function __construct(
         public string $text,

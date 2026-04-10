@@ -9,8 +9,10 @@ use B7s\FluentCut\Enums\HardwareAccel;
 use B7s\FluentCut\Exceptions\FFmpegNotFoundException;
 use B7s\FluentCut\Results\ProgressInfo;
 use B7s\FluentCut\Support\Platform;
+use JsonException;
 use Symfony\Component\Process\Process;
 
+use Throwable;
 use function explode;
 use function is_array;
 use function json_decode;
@@ -46,26 +48,25 @@ final class FFmpegService
         return $this->timeout;
     }
 
+    /**
+     * @throws FFmpegNotFoundException
+     */
     public function getFFmpegPath(): string
     {
-        if ($this->ffmpegPath !== null) {
-            return $this->ffmpegPath;
-        }
-
-        return $this->ffmpegPath = $this->findBinary(Platform::ffmpegBinaryName(), 'FFmpeg');
+        return $this->ffmpegPath ?? ($this->ffmpegPath = $this->findBinary(Platform::ffmpegBinaryName(), 'FFmpeg'));
     }
 
+    /**
+     * @throws FFmpegNotFoundException
+     */
     public function getFFprobePath(): string
     {
-        if ($this->ffprobePath !== null) {
-            return $this->ffprobePath;
-        }
-
-        return $this->ffprobePath = $this->findBinary(Platform::ffprobeBinaryName(), 'FFprobe');
+        return $this->ffprobePath ?? ($this->ffprobePath = $this->findBinary(Platform::ffprobeBinaryName(), 'FFprobe'));
     }
 
     /**
      * @return array<string, mixed>
+     * @throws JsonException|FFmpegNotFoundException
      */
     public function probe(string $path): array
     {
@@ -91,7 +92,7 @@ final class FFmpegService
             return [];
         }
 
-        $data = json_decode($process->getOutput(), true);
+        $data = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
         $result = is_array($data) ? $data : [];
 
         $this->probeCache[$realPath] = $result;
@@ -126,7 +127,10 @@ final class FFmpegService
      */
     public function getVideoDimensions(string $path): ?array
     {
-        $info = $this->probe($path);
+        try {
+            $info = $this->probe($path);
+        } catch (FFmpegNotFoundException|JsonException $e) {}
+
         $streams = $info['streams'] ?? [];
 
         foreach ($streams as $stream) {
@@ -141,6 +145,10 @@ final class FFmpegService
         return null;
     }
 
+    /**
+     * @throws JsonException
+     * @throws FFmpegNotFoundException
+     */
     public function getVideoFps(string $path): ?float
     {
         $info = $this->probe($path);
@@ -164,6 +172,10 @@ final class FFmpegService
         return null;
     }
 
+    /**
+     * @throws JsonException
+     * @throws FFmpegNotFoundException
+     */
     public function hasAudioStream(string $path): bool
     {
         $info = $this->probe($path);
@@ -191,7 +203,7 @@ final class FFmpegService
 
     /**
      * @param string[] $command
-     * @param callable(\B7s\FluentCut\Results\ProgressInfo): void|null $onProgress
+     * @param callable(ProgressInfo): void|null $onProgress
      */
     public function runWithProgress(array $command, ?callable $onProgress = null, float $totalDuration = 0.0, int $fps = 30, int $segment = 0, int $totalSegments = 1, string $phase = 'rendering', ?int $timeout = null): Process
     {
@@ -228,7 +240,7 @@ final class FFmpegService
         if ($stderr !== '') {
             $progress = $this->parseProgress($stderr, $totalDuration, $fps, $segment, $totalSegments, $phase);
             if ($progress !== null && $progress->percentage < 100.0) {
-                $onProgress(new \B7s\FluentCut\Results\ProgressInfo(
+                $onProgress(new ProgressInfo(
                     frame: $progress->frame,
                     currentTime: $progress->currentTime,
                     bitrate: $progress->bitrate,
@@ -363,11 +375,8 @@ final class FFmpegService
             return (float) $bitrate * 1000;
         }
 
-        if (str_contains($bitrate, 'kbps')) {
-            return (float) $bitrate;
-        }
-
         return (float) $bitrate;
+
     }
 
     public function checkRequirements(): bool
@@ -382,6 +391,9 @@ final class FFmpegService
         }
     }
 
+    /**
+     * @throws FFmpegNotFoundException
+     */
     public function isEncoderAvailable(string $encoder): bool
     {
         $encoders = $this->getAvailableEncoders();
@@ -435,6 +447,7 @@ final class FFmpegService
 
     /**
      * @return array<string, true>
+     * @throws FFmpegNotFoundException
      */
     private function getAvailableEncoders(): array
     {
@@ -476,6 +489,9 @@ final class FFmpegService
         return $this->encodersCache;
     }
 
+    /**
+     * @throws FFmpegNotFoundException
+     */
     private function findBinary(string $name, string $label): string
     {
         $candidates = [
@@ -498,7 +514,7 @@ final class FFmpegService
                 if ($process->isSuccessful()) {
                     return $candidate;
                 }
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 continue;
             }
         }

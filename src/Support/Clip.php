@@ -103,9 +103,9 @@ final class Clip
             $this->start !== null ? (string) $this->start : '',
             $this->end !== null ? (string) $this->end : '',
             $this->resizeMode->value,
-            implode(',', array_map(fn(VideoEffect $e) => $e->value, $this->effects)),
+            implode(',', array_map(static fn(VideoEffect $e) => $e->value, $this->effects)),
             implode(',', array_map(fn($t) => $this->serializeTextOverlay($t), $this->textOverlays)),
-            implode(',', array_map(fn($o) => "{$o->path}|{$o->position->x}|{$o->position->y}", $this->imageOverlays)),
+            implode(',', array_map(static fn($o) => "{$o->path}|{$o->position->x}|{$o->position->y}", $this->imageOverlays)),
             implode(',', $this->audioPaths),
             "{$width}x{$height}x{$fps}",
         ];

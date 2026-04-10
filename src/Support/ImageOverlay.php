@@ -33,7 +33,7 @@ final readonly class ImageOverlay
 
         if ($this->start > 0.0 || $this->end !== null) {
             $start = $this->start;
-            $end = $this->end ?? 999999;
+            $end = $this->end ?? 999999.0;
             $overlay .= ":enable='between(t,{$start},{$end})'";
         }
 

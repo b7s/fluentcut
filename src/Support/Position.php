@@ -15,8 +15,8 @@ use function trim;
 
 final readonly class Position
 {
-    private const CENTER = PHP_INT_MIN;
-    private const EDGE_END = PHP_INT_MAX;
+    private const int CENTER = PHP_INT_MIN;
+    private const int EDGE_END = PHP_INT_MAX;
 
     public function __construct(
         public int $x,

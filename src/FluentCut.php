@@ -19,6 +19,8 @@ use B7s\FluentCut\Support\ImageOverlay;
 use B7s\FluentCut\Support\Position;
 use B7s\FluentCut\Support\TextOverlay;
 
+use JsonException;
+use Throwable;
 use function array_key_last;
 use function dirname;
 use function file_exists;
@@ -82,7 +84,7 @@ class FluentCut
     private ?HardwareAccel $hardwareAccel = null;
     private bool $forceCpu = false;
     private int $maxConcurrentSegments = 0;
-    /** @var callable(\B7s\FluentCut\Results\ProgressInfo): void|null */
+    /** @var callable(ProgressInfo): void|null */
     private $onProgress = null;
 
     private readonly FFmpegService $ffmpegService;
@@ -169,6 +171,9 @@ class FluentCut
     // ADD VIDEO CLIPS
     // =========================================================================
 
+    /**
+     * @throws RenderException
+     */
     public function addVideo(string $path, ?float $start = null, ?float $end = null, VideoEffect|array|null $effect = null): self
     {
         $this->assertFileExists($path);
@@ -181,6 +186,9 @@ class FluentCut
         return $this;
     }
 
+    /**
+     * @throws RenderException
+     */
     public function fromVideo(string $path, ?float $start = null, ?float $end = null, VideoEffect|array|null $effect = null): self
     {
         return $this->addVideo($path, $start, $end, $effect);
@@ -190,6 +198,9 @@ class FluentCut
     // ADD IMAGE CLIPS
     // =========================================================================
 
+    /**
+     * @throws RenderException
+     */
     public function addImage(string $path, float $duration = 1.0, VideoEffect|array|null $effect = null): self
     {
         $this->assertFileExists($path);
@@ -204,6 +215,7 @@ class FluentCut
 
     /**
      * @param string[] $paths
+     * @throws RenderException
      */
     public function addImages(array $paths, float $duration = 1.0, VideoEffect|array|null $effect = null): self
     {
@@ -218,6 +230,9 @@ class FluentCut
     // ADD COLOR / BACKGROUND CLIPS
     // =========================================================================
 
+    /**
+     * @throws RenderException
+     */
     public function addColor(string $color, float $duration = 1.0, VideoEffect|array|null $effect = null): self
     {
         $clip = Clip::fromColor($color, $duration);
@@ -227,11 +242,17 @@ class FluentCut
         return $this;
     }
 
+    /**
+     * @throws RenderException
+     */
     public function addBlack(float $duration = 1.0): self
     {
         return $this->addColor('black', $duration);
     }
 
+    /**
+     * @throws RenderException
+     */
     public function addWhite(float $duration = 1.0): self
     {
         return $this->addColor('white', $duration);
@@ -243,6 +264,7 @@ class FluentCut
 
     /**
      * Add a text overlay to the most recently added clip.
+     * @throws RenderException
      */
     public function addText(
         string $text,
@@ -293,12 +315,13 @@ class FluentCut
      * Apply one or more visual effects to the most recently added clip.
      *
      * @param VideoEffect ...$effects One or more effects to apply (duplicates removed)
+     * @throws RenderException
      */
     public function effect(VideoEffect ...$effects): self
     {
         $clip = $this->lastClip();
         $merged = array_unique([...$clip->effects, ...$effects], SORT_REGULAR);
-        $clip->effects = array_values(array_filter($merged, fn(VideoEffect $e) => $e !== VideoEffect::None));
+        $clip->effects = array_values(array_filter($merged, static fn (VideoEffect $e) => $e !== VideoEffect::None));
 
         return $this;
     }
@@ -309,6 +332,7 @@ class FluentCut
 
     /**
      * Overlay an image on top of the most recently added clip.
+     * @throws RenderException
      */
     public function overlayImage(
         string $path,
@@ -339,6 +363,9 @@ class FluentCut
     // AUDIO
     // =========================================================================
 
+    /**
+     * @throws RenderException
+     */
     public function withAudio(string $path, bool $loop = false, ?float $volume = null): self
     {
         $this->assertFileExists($path);
@@ -364,6 +391,9 @@ class FluentCut
         return $this;
     }
 
+    /**
+     * @throws RenderException
+     */
     public function addAudioToClip(string $path): self
     {
         $this->assertFileExists($path);
@@ -502,7 +532,7 @@ class FluentCut
      * - percentage (0-100), segment/totalSegments
      * - phase (e.g. "rendering segment 2", "mixing audio")
      *
-     * @param callable(\B7s\FluentCut\Results\ProgressInfo): void $callback
+     * @param callable(ProgressInfo): void $callback
      */
     public function onProgress(callable $callback): self
     {
@@ -576,6 +606,9 @@ class FluentCut
     // RENDER (terminal operation)
     // =========================================================================
 
+    /**
+     * @throws Throwable
+     */
     public function render(): RenderResult
     {
         if (empty($this->clips)) {
@@ -621,6 +654,8 @@ class FluentCut
      * Probe a media file and return its metadata.
      *
      * @return array<string, mixed>
+     *
+     * @throws Exceptions\FFmpegNotFoundException|JsonException
      */
     public static function probe(string $path): array
     {
@@ -649,6 +684,9 @@ class FluentCut
     // INTERNAL
     // =========================================================================
 
+    /**
+     * @throws RenderException
+     */
     private function lastClip(): Clip
     {
         if (empty($this->clips)) {
@@ -658,6 +696,9 @@ class FluentCut
         return $this->clips[array_key_last($this->clips)];
     }
 
+    /**
+     * @throws RenderException
+     */
     private function assertFileExists(string $path): void
     {
         if (!file_exists($path)) {
@@ -685,6 +726,6 @@ class FluentCut
 
         $unique = array_unique($effects, SORT_REGULAR);
 
-        return array_values(array_filter($unique, fn(VideoEffect $e) => $e !== VideoEffect::None));
+        return array_values(array_filter($unique, static fn (VideoEffect $e) => $e !== VideoEffect::None));
     }
 }

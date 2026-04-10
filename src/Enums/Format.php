@@ -15,8 +15,8 @@ enum Format: string
     public function defaultCodec(): Codec
     {
         return match ($this) {
-            self::Mp4 => Codec::H264,
-            self::Mkv => Codec::H264,
+            self::Mp4,
+            self::Mkv,
             self::Mov => Codec::H264,
             self::Webm => Codec::Vp9,
             self::Gif => Codec::Gif,
@@ -39,7 +39,6 @@ enum Format: string
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
         return match ($ext) {
-            'mp4' => self::Mp4,
             'mkv' => self::Mkv,
             'mov' => self::Mov,
             'webm' => self::Webm,
