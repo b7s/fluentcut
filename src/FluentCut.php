@@ -174,6 +174,9 @@ class FluentCut
     /**
      * @throws RenderException
      */
+    /**
+     * @param VideoEffect|VideoEffect[]|null $effect
+     */
     public function addVideo(string $path, ?float $start = null, ?float $end = null, VideoEffect|array|null $effect = null): self
     {
         $this->assertFileExists($path);
@@ -189,6 +192,9 @@ class FluentCut
     /**
      * @throws RenderException
      */
+    /**
+     * @param VideoEffect|VideoEffect[]|null $effect
+     */
     public function fromVideo(string $path, ?float $start = null, ?float $end = null, VideoEffect|array|null $effect = null): self
     {
         return $this->addVideo($path, $start, $end, $effect);
@@ -200,6 +206,9 @@ class FluentCut
 
     /**
      * @throws RenderException
+     */
+    /**
+     * @param VideoEffect|VideoEffect[]|null $effect
      */
     public function addImage(string $path, float $duration = 1.0, VideoEffect|array|null $effect = null): self
     {
@@ -215,6 +224,7 @@ class FluentCut
 
     /**
      * @param string[] $paths
+     * @param VideoEffect|VideoEffect[]|null $effect
      * @throws RenderException
      */
     public function addImages(array $paths, float $duration = 1.0, VideoEffect|array|null $effect = null): self
@@ -232,6 +242,9 @@ class FluentCut
 
     /**
      * @throws RenderException
+     */
+    /**
+     * @param VideoEffect|VideoEffect[]|null $effect
      */
     public function addColor(string $color, float $duration = 1.0, VideoEffect|array|null $effect = null): self
     {
@@ -712,6 +725,7 @@ class FluentCut
     }
 
     /**
+     * @param VideoEffect|VideoEffect[]|null $effects
      * @return VideoEffect[]
      */
     private static function normalizeEffects(VideoEffect|array|null $effects): array

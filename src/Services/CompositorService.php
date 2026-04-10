@@ -273,10 +273,8 @@ final class CompositorService
         return $segmentPaths;
     }
 
-    /**
-     * @param array $command
-     * @param Clip $clip
-     * @param int $width
+/**
+     * @param string[] $command
      * @param int $height
      * @param int $fps
      * @param string $outputPath

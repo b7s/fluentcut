@@ -14,7 +14,7 @@ final class Application extends BaseApplication
     {
         parent::__construct('FluentCut', '1.0.0');
 
-        $this->add(new DoctorCommand());
-        $this->add(new InfoCommand());
+        $this->addCommand(new DoctorCommand());
+        $this->addCommand(new InfoCommand());
     }
 }
