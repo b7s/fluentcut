@@ -10,6 +10,6 @@ return [
     'default_fps' => 30,
     'default_codec' => 'libx264',
     'default_duration' => 1.0,
-    'timeout' => 600,
+    'timeout' => 14400, // seconds
     'verbose' => false,
 ];
