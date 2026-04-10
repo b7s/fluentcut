@@ -8,12 +8,14 @@ use B7s\FluentCut\Enums\ResizeMode;
 use B7s\FluentCut\Enums\VideoEffect;
 use B7s\FluentCut\Exceptions\RenderException;
 
+use function implode;
 use function preg_match;
+use function serialize;
 use function str_contains;
 
 final class Clip
 {
-    private const CSS_COLORS = [
+    private const array CSS_COLORS = [
         'black', 'white', 'red', 'green', 'blue', 'yellow', 'cyan', 'magenta',
         'gray', 'grey', 'orange', 'pink', 'purple', 'brown', 'silver', 'gold',
         'maroon', 'olive', 'lime', 'aqua', 'teal', 'navy', 'fuchsia',
@@ -64,6 +66,9 @@ final class Clip
         return $clip;
     }
 
+    /**
+     * @throws RenderException
+     */
     public static function fromColor(string $color, float $duration): self
     {
         self::validateColor($color);
@@ -90,6 +95,37 @@ final class Clip
         return $this->backgroundColor !== null;
     }
 
+    public function cacheKey(int $width, int $height, int $fps): string
+    {
+        $parts = [
+            $this->videoPath ?? $this->imagePath ?? $this->backgroundColor ?? '',
+            (string) $this->duration,
+            $this->start !== null ? (string) $this->start : '',
+            $this->end !== null ? (string) $this->end : '',
+            $this->resizeMode->value,
+            implode(',', array_map(fn(VideoEffect $e) => $e->value, $this->effects)),
+            implode(',', array_map(fn($t) => $this->serializeTextOverlay($t), $this->textOverlays)),
+            implode(',', array_map(fn($o) => "{$o->path}|{$o->position->x}|{$o->position->y}", $this->imageOverlays)),
+            implode(',', $this->audioPaths),
+            "{$width}x{$height}x{$fps}",
+        ];
+
+        return hash('xxh3', implode('|', array_filter($parts, fn($p) => $p !== '')));
+    }
+
+    public function cacheKeyWithCanvas(int $width, int $height, int $fps): string
+    {
+        return $this->cacheKey($width, $height, $fps);
+    }
+
+    private function serializeTextOverlay(TextOverlay $t): string
+    {
+        return "{$t->text}|{$t->position->x}|{$t->position->y}|{$t->fontSize}|{$t->fontColor}|{$t->borderWidth}";
+    }
+
+    /**
+     * @throws RenderException
+     */
     public static function validateColor(string $color): void
     {
         $lower = strtolower($color);

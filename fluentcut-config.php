@@ -12,4 +12,7 @@ return [
     'default_duration' => 1.0,
     'timeout' => 14400, // seconds
     'verbose' => false,
+    'cache_enabled' => true,
+    'cache_dir' => null,
+    'clear_cache_after_render' => true,
 ];

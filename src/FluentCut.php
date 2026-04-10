@@ -78,6 +78,7 @@ class FluentCut
     private ResizeMode $resizeMode;
     private int $timeout;
     private bool $verbose;
+    private bool $cacheEnabled;
     private ?HardwareAccel $hardwareAccel = null;
     private bool $forceCpu = false;
     private int $maxConcurrentSegments = 0;
@@ -96,10 +97,16 @@ class FluentCut
         $this->fps = (int) Config::get('default_fps', 30);
         $this->timeout = (int) Config::get('timeout', 0);
         $this->verbose = (bool) Config::get('verbose', false);
+        $this->cacheEnabled = (bool) Config::get('cache_enabled', true);
         $this->resizeMode = ResizeMode::ContainBlur;
 
         $this->ffmpegService = new FFmpegService($this->timeout);
-        $this->compositor = new CompositorService($this->ffmpegService);
+        $this->compositor = new CompositorService(
+            $this->ffmpegService,
+            $this->cacheEnabled,
+            Config::get('cache_dir'),
+            (bool) Config::get('clear_cache_after_render', true),
+        );
     }
 
     public static function make(): self
@@ -441,6 +448,21 @@ class FluentCut
     public function verbose(bool $verbose = true): self
     {
         $this->verbose = $verbose;
+
+        return $this;
+    }
+
+    public function useCache(bool $enabled = true): self
+    {
+        $this->cacheEnabled = $enabled;
+        $this->compositor->setCacheEnabled($enabled);
+
+        return $this;
+    }
+
+    public function clearCache(): self
+    {
+        $this->compositor->clearCache();
 
         return $this;
     }

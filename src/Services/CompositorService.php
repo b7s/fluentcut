@@ -15,7 +15,7 @@ use B7s\FluentCut\Results\RenderResult;
 use B7s\FluentCut\Support\Clip;
 use B7s\FluentCut\Support\ImageOverlay;
 
-use Symfony\Component\Process\Process;
+use RuntimeException;
 use Throwable;
 use function array_key_last;
 use function count;
@@ -24,6 +24,7 @@ use function file_exists;
 use function file_put_contents;
 use function implode;
 use function is_dir;
+use function is_file;
 use function max;
 use function mkdir;
 use function rename;
@@ -34,11 +35,26 @@ use function uniqid;
 use function unlink;
 use function usleep;
 
-final readonly class CompositorService
+final class CompositorService
 {
+    private bool $cacheEnabled;
+    private string $cacheDir;
+    private bool $clearCacheAfterRender;
+
     public function __construct(
-        private FFmpegService $ffmpeg,
-    ) {}
+        private readonly FFmpegService $ffmpeg,
+        bool                           $cacheEnabled = true,
+        ?string                        $cacheDir = null,
+        bool                           $clearCacheAfterRender = true,
+    ) {
+        $this->cacheEnabled = $cacheEnabled;
+        $this->cacheDir = $cacheDir ?? sys_get_temp_dir() . '/fluentcut-cache';
+        $this->clearCacheAfterRender = $clearCacheAfterRender;
+
+        if ($this->cacheEnabled && !is_dir($this->cacheDir) && !mkdir($concurrentDirectory = $this->cacheDir, 0755, true) && !is_dir($concurrentDirectory)) {
+            throw new RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
+        }
+    }
 
     /**
      * @param Clip[] $clips
@@ -163,6 +179,7 @@ final readonly class CompositorService
                     $timeout, null, $maxConcurrentSegments,
                 );
             } else {
+                $this->clearCache();
                 throw $e;
             }
         }
@@ -195,6 +212,10 @@ final readonly class CompositorService
             rename($finalPath, $outputPath);
         }
 
+        if ($this->clearCacheAfterRender) {
+            $this->clearCache();
+        }
+
         return $this->buildResult($outputPath);
     }
 
@@ -207,129 +228,69 @@ final readonly class CompositorService
      */
     private function renderSegments(array $clips, int $width, int $height, int $fps, Codec $codec, bool $verbose, array &$tempFiles, ?callable $onProgress, int $clipFps, int $totalSegments, float $totalDuration, int $timeout, ?HardwareAccel $hardwareAccel, int $maxConcurrentSegments = 0): array
     {
-        if ($onProgress !== null) {
-            return $this->renderSegmentsWithProgress($clips, $width, $height, $fps, $codec, $verbose, $tempFiles, $onProgress, $clipFps, $totalSegments, $totalDuration, $timeout, $hardwareAccel);
-        }
-
-        return $this->renderSegmentsParallel($clips, $width, $height, $fps, $codec, $verbose, $tempFiles, $timeout, $hardwareAccel, $maxConcurrentSegments);
-    }
-
-    /**
-     * @param Clip[] $clips
-     * @param string[] $tempFiles
-     * @param callable(ProgressInfo): void $onProgress
-     * @return string[]
-     * @throws RenderException
-     */
-    private function renderSegmentsWithProgress(array $clips, int $width, int $height, int $fps, Codec $codec, bool $verbose, array &$tempFiles, callable $onProgress, int $clipFps, int $totalSegments, float $totalDuration, int $timeout, ?HardwareAccel $hardwareAccel): array
-    {
         $segmentPaths = [];
-        $segmentIndex = 0;
 
-        foreach ($clips as $i => $clip) {
-            $job = $this->prepareSegmentJob($clip, $i, $width, $height, $fps, $codec, $hardwareAccel, $verbose, $tempFiles);
+        foreach ($clips as $index => $clip) {
+            $cachedPath = $this->getCachedSegment($clip, $width, $height, $fps);
+            if ($cachedPath !== null) {
+                $tempPath = sys_get_temp_dir() . '/fluentcut_seg_' . $index . '_' . uniqid('', true) . '.mp4';
+                $tempFiles[] = $tempPath;
+                @copy($cachedPath, $tempPath);
+                $segmentPaths[] = $tempPath;
 
-            $process = $this->ffmpeg->runWithProgress(
-                command: $job['command'],
-                onProgress: $onProgress,
-                totalDuration: $clip->duration,
-                fps: $clipFps,
-                segment: $segmentIndex,
-                totalSegments: $totalSegments,
-                phase: "rendering segment {$segmentIndex}",
-                timeout: $this->estimateSegmentTimeout($clip, $timeout),
-            );
-
-            if (!$process->isSuccessful()) {
-                throw RenderException::ffmpegError($process->getErrorOutput());
+                if ($verbose) {
+                    error_log("[FluentCut] Segment {$index}: cache hit, using cached segment");
+                }
+                continue;
             }
 
-            $segmentPaths[] = $job['path'];
-            $this->ffmpeg->invalidateProbeCache($job['path']);
-            $segmentIndex++;
+            $job = $this->prepareSegmentJob($clip, $index, $width, $height, $fps, $codec, $hardwareAccel, $verbose, $tempFiles);
+            $segmentPaths[] = $this->executeSegmentRender(
+                $job['command'],
+                $clip,
+                $width,
+                $height,
+                $fps,
+                $job['path'],
+                $onProgress,
+                $clipFps,
+                $index,
+                $totalSegments,
+                $totalDuration,
+                $timeout,
+            );
         }
 
         return $segmentPaths;
     }
 
     /**
-     * @param Clip[] $clips
      * @param string[] $tempFiles
-     * @return string[]
      * @throws RenderException
      */
-    private function renderSegmentsParallel(array $clips, int $width, int $height, int $fps, Codec $codec, bool $verbose, array &$tempFiles, int $timeout, ?HardwareAccel $hardwareAccel, int $maxConcurrentSegments = 0): array
+    private function executeSegmentRender(array $command, Clip $clip, int $width, int $height, int $fps, string $outputPath, ?callable $onProgress, int $clipFps, int $index, int $totalSegments, float $totalDuration, int $timeout): string
     {
-        $maxConcurrent = $maxConcurrentSegments > 0 ? $maxConcurrentSegments : $this->autoDetectConcurrency();
+        $process = $onProgress !== null
+            ? $this->ffmpeg->runWithProgress(
+                command: $command,
+                onProgress: $onProgress,
+                totalDuration: $clip->duration,
+                fps: $clipFps,
+                segment: $index,
+                totalSegments: $totalSegments,
+                phase: "rendering segment {$index}",
+                timeout: $this->estimateSegmentTimeout($clip, $timeout),
+            )
+            : $this->ffmpeg->run($command, $this->estimateSegmentTimeout($clip, $timeout));
 
-        $jobs = [];
-        $results = [];
-        $activeCount = 0;
-
-        foreach ($clips as $i => $clip) {
-            while ($activeCount >= $maxConcurrent) {
-                $completed = $this->waitForAnyCompleted($jobs);
-                $this->processJobCompletion($jobs, $results, $completed);
-                $activeCount--;
-            }
-
-            $job = $this->prepareSegmentJob($clip, $i, $width, $height, $fps, $codec, $hardwareAccel, $verbose, $tempFiles);
-
-            $jobs[$i] = [
-                'process' => $this->ffmpeg->runAsync($job['command'], $this->estimateSegmentTimeout($clip, $timeout)),
-                'path' => $job['path'],
-            ];
-            $activeCount++;
+        if (!$process->isSuccessful()) {
+            throw RenderException::ffmpegError($process->getErrorOutput());
         }
 
-        while (!empty($jobs)) {
-            $completed = $this->waitForAnyCompleted($jobs);
-            $this->processJobCompletion($jobs, $results, $completed);
-        }
+        $this->saveCachedSegment($outputPath, $clip, $width, $height, $fps);
+        $this->ffmpeg->invalidateProbeCache($outputPath);
 
-        ksort($results);
-
-        return array_values($results);
-    }
-
-    private function autoDetectConcurrency(): int
-    {
-        $cores = (int) shell_exec('nproc 2>/dev/null') ?: (int) shell_exec('sysctl -n hw.ncpu 2>/dev/null') ?: 4;
-
-        return max(1, $cores);
-    }
-
-    /**
-     * @param array<int, array{process: Process, path: string}> $jobs
-     */
-    private function waitForAnyCompleted(array &$jobs): int
-    {
-        while (true) {
-            foreach ($jobs as $i => $job) {
-                if (!$job['process']->isRunning()) {
-                    return $i;
-                }
-            }
-            usleep(50000);
-        }
-    }
-
-    /**
-     * @param array<int, array{process: Process, path: string}> $jobs
-     * @param array<int, string> $results
-     * @throws RenderException
-     */
-    private function processJobCompletion(array &$jobs, array &$results, int $i): void
-    {
-        $job = $jobs[$i];
-        unset($jobs[$i]);
-
-        if (!$job['process']->isSuccessful()) {
-            throw RenderException::ffmpegError($job['process']->getErrorOutput());
-        }
-
-        $results[$i] = $job['path'];
-        $this->ffmpeg->invalidateProbeCache($job['path']);
+        return $outputPath;
     }
 
     /**
@@ -790,6 +751,10 @@ final readonly class CompositorService
                 return RenderResult::failure('Failed to render GIF: ' . $process->getErrorOutput());
             }
 
+            if ($this->clearCacheAfterRender) {
+                $this->clearCache();
+            }
+
             return $this->buildResult($outputPath);
         } catch (Throwable $e) {
             return RenderResult::failure($e->getMessage());
@@ -879,5 +844,55 @@ final readonly class CompositorService
         }
 
         return null;
+    }
+
+    public function setCacheEnabled(bool $enabled): void
+    {
+        $this->cacheEnabled = $enabled;
+    }
+
+    public function clearCache(): void
+    {
+        if (!is_dir($this->cacheDir)) {
+            return;
+        }
+
+        foreach (glob($this->cacheDir . '/*') as $file) {
+            if (is_file($file)) {
+                @unlink($file);
+            }
+        }
+    }
+
+    private function getCachedSegment(Clip $clip, int $width, int $height, int $fps): ?string
+    {
+        if (!$this->cacheEnabled) {
+            return null;
+        }
+
+        $cacheKey = $clip->cacheKey($width, $height, $fps);
+        $cachedPath = $this->cacheDir . '/' . $cacheKey . '.mp4';
+
+        if (file_exists($cachedPath)) {
+            return $cachedPath;
+        }
+
+        return null;
+    }
+
+    private function saveCachedSegment(string $sourcePath, Clip $clip, int $width, int $height, int $fps): string
+    {
+        if (!$this->cacheEnabled) {
+            return $sourcePath;
+        }
+
+        $cacheKey = $clip->cacheKey($width, $height, $fps);
+        $cachedPath = $this->cacheDir . '/' . $cacheKey . '.mp4';
+
+        if (!file_exists($cachedPath)) {
+            @copy($sourcePath, $cachedPath);
+        }
+
+        return $cachedPath;
     }
 }
