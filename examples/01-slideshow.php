@@ -7,6 +7,7 @@ require __DIR__ . '/../vendor/autoload.php';
 use B7s\FluentCut\Enums\VideoEffect;
 use B7s\FluentCut\FluentCut;
 
+$start = microtime(true);
 $result = FluentCut::make()
     ->fullHd()
     ->addImage(__DIR__ . '/../examples/assets/slide1.jpg', duration: 3, effect: VideoEffect::SoftZoom)
@@ -16,11 +17,13 @@ $result = FluentCut::make()
     ->fade(0.5)
     ->saveTo(__DIR__ . '/output/slideshow.mp4')
     ->render();
+$elapsed = microtime(true) - $start;
 
 if ($result->isSuccessful()) {
     echo "Created: {$result->outputPath}" . PHP_EOL;
     echo "Duration: {$result->getFormattedDuration()}" . PHP_EOL;
     echo "Size: {$result->getFormattedSize()}" . PHP_EOL;
+    echo "Render time: " . round($elapsed, 2) . " seconds" . PHP_EOL;
 } else {
     echo "Error: {$result->error}" . PHP_EOL;
 }

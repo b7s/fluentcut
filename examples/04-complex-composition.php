@@ -10,6 +10,7 @@ use B7s\FluentCut\FluentCut;
 
 echo "Just a moment. This may take some time..." . PHP_EOL . PHP_EOL;
 
+$start = microtime(true);
 $result = FluentCut::make()
     ->fullHd()
     ->useGpu()
@@ -25,11 +26,13 @@ $result = FluentCut::make()
     ->keepSourceAudio()
     ->saveTo(__DIR__ . '/output/composition.mp4')
     ->render();
+$elapsed = microtime(true) - $start;
 
 if ($result->isSuccessful()) {
     echo "Created: {$result->outputPath}" . PHP_EOL;
     echo "Duration: {$result->getFormattedDuration()}" . PHP_EOL;
     echo "Size: {$result->getFormattedSize()}" . PHP_EOL;
+    echo "Render time: " . round($elapsed, 2) . " seconds" . PHP_EOL;
 } else {
     echo "Error: {$result->error}" . PHP_EOL;
 }
