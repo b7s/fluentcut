@@ -110,6 +110,10 @@ final class FFmpegService
         }
     }
 
+    /**
+     * @throws JsonException
+     * @throws FFmpegNotFoundException
+     */
     public function getDuration(string $path): ?float
     {
         $info = $this->probe($path);
@@ -401,6 +405,9 @@ final class FFmpegService
         return isset($encoders[$encoder]);
     }
 
+    /**
+     * @throws FFmpegNotFoundException
+     */
     public function detectHardwareAccel(): ?HardwareAccel
     {
         if ($this->detectedAccel !== null) {
@@ -427,6 +434,9 @@ final class FFmpegService
         return $this->detectedAccel = null;
     }
 
+    /**
+     * @throws FFmpegNotFoundException
+     */
     public function resolveHardwareAccel(?HardwareAccel $requested): ?HardwareAccel
     {
         if ($requested === null || $requested === HardwareAccel::None) {

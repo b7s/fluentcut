@@ -25,7 +25,6 @@ use function array_key_last;
 use function dirname;
 use function file_exists;
 use function is_dir;
-use function is_file;
 use function max;
 use function mkdir;
 
@@ -176,6 +175,7 @@ class FluentCut
      */
     /**
      * @param VideoEffect|VideoEffect[]|null $effect
+     * @throws RenderException
      */
     public function addVideo(string $path, ?float $start = null, ?float $end = null, VideoEffect|array|null $effect = null): self
     {
@@ -190,10 +190,8 @@ class FluentCut
     }
 
     /**
-     * @throws RenderException
-     */
-    /**
      * @param VideoEffect|VideoEffect[]|null $effect
+     * @throws RenderException
      */
     public function fromVideo(string $path, ?float $start = null, ?float $end = null, VideoEffect|array|null $effect = null): self
     {
@@ -205,10 +203,8 @@ class FluentCut
     // =========================================================================
 
     /**
-     * @throws RenderException
-     */
-    /**
      * @param VideoEffect|VideoEffect[]|null $effect
+     * @throws RenderException
      */
     public function addImage(string $path, float $duration = 1.0, VideoEffect|array|null $effect = null): self
     {
@@ -241,10 +237,8 @@ class FluentCut
     // =========================================================================
 
     /**
-     * @throws RenderException
-     */
-    /**
      * @param VideoEffect|VideoEffect[]|null $effect
+     * @throws RenderException
      */
     public function addColor(string $color, float $duration = 1.0, VideoEffect|array|null $effect = null): self
     {

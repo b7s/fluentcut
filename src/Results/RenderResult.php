@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 namespace B7s\FluentCut\Results;
 
-final class RenderResult
+final readonly class RenderResult
 {
     /**
      * @param array<string, mixed> $metadata
      */
     public function __construct(
-        public readonly bool $success,
-        public readonly ?string $outputPath,
-        public readonly ?float $duration,
-        public readonly ?int $width,
-        public readonly ?int $height,
-        public readonly ?string $format,
-        public readonly ?int $fileSize,
-        public readonly ?string $error = null,
-        public readonly array $metadata = [],
+        public bool    $success,
+        public ?string $outputPath,
+        public ?float  $duration,
+        public ?int    $width,
+        public ?int    $height,
+        public ?string $format,
+        public ?int    $fileSize,
+        public ?string $error = null,
+        public array   $metadata = [],
     ) {}
 
     /**
