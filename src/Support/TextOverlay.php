@@ -58,9 +58,9 @@ final readonly class TextOverlay
         $params[] = "y={$y}";
 
         if ($this->start > 0.0) {
-            $params[] = "enable='between(t,{$this->start}," . ($this->end ?? $clipDuration) . ")'";
+            $params[] = sprintf("enable='between(t,%.6f,%.6f)'", $this->start, $this->end ?? $clipDuration);
         } elseif ($this->end !== null) {
-            $params[] = "enable='between(t,0,{$this->end})'";
+            $params[] = sprintf("enable='between(t,0,%.6f)'", $this->end);
         }
 
         return 'drawtext=' . implode(':', $params);

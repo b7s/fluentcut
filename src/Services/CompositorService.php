@@ -412,13 +412,13 @@ final class CompositorService
         $command = [$this->ffmpeg->getFFmpegPath()];
 
         if ($clip->start !== null) {
-            $command = [...$command, '-ss', (string) $clip->start];
+            $command = [...$command, '-ss', sprintf('%.6f', $clip->start)];
         }
 
         $command = [...$command, '-i', $clip->videoPath];
 
         if ($clip->end !== null) {
-            $command = [...$command, '-t', (string) ($clip->end - ($clip->start ?? 0.0))];
+            $command = [...$command, '-t', sprintf('%.6f', max(0, $clip->end - ($clip->start ?? 0.0)))];
         }
 
         $filters = [];
@@ -448,7 +448,7 @@ final class CompositorService
         $command = [...$command, '-loop', '1', '-i', $clip->imagePath];
 
         if ($clip->duration > 0) {
-            $command = [...$command, '-t', (string) $clip->duration];
+            $command = [...$command, '-t', sprintf('%.6f', $clip->duration)];
         }
 
         $filters = [$clip->resizeMode->toFFmpegFilter($width, $height), ...$this->collectClipFilters($clip, $width, $height, $fps)];
@@ -467,7 +467,7 @@ final class CompositorService
      */
     private function buildColorSegmentCommand(Clip $clip, int $width, int $height, int $fps, Codec $codec, string $outputPath, ?HardwareAccel $hardwareAccel = null): array
     {
-        $command = [$this->ffmpeg->getFFmpegPath(), '-f', 'lavfi', '-i', "color=c={$clip->backgroundColor}:s={$width}x{$height}:d={$clip->duration}:r={$fps}"];
+        $command = [$this->ffmpeg->getFFmpegPath(), '-f', 'lavfi', '-i', sprintf('color=c=%s:s=%dx%d:d=%.6f:r=%d', $clip->backgroundColor, $width, $height, $clip->duration, $fps)];
 
         $filters = $this->collectClipFilters($clip, $width, $height, $fps);
 
