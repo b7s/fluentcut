@@ -437,6 +437,7 @@ final class CompositorService
 
     /**
      * @return string[]
+     * @throws FFmpegNotFoundException
      */
     private function buildVideoSegmentCommand(Clip $clip, int $width, int $height, int $fps, Codec $codec, string $outputPath, ?HardwareAccel $hardwareAccel = null): array
     {
@@ -466,6 +467,7 @@ final class CompositorService
 
     /**
      * @return string[]
+     * @throws FFmpegNotFoundException
      */
     private function buildImageSegmentCommand(Clip $clip, int $width, int $height, int $fps, Codec $codec, string $outputPath, ?HardwareAccel $hardwareAccel = null): array
     {
@@ -496,6 +498,7 @@ final class CompositorService
 
     /**
      * @return string[]
+     * @throws FFmpegNotFoundException
      */
     private function buildColorSegmentCommand(Clip $clip, int $width, int $height, int $fps, Codec $codec, string $outputPath, ?HardwareAccel $hardwareAccel = null): array
     {
@@ -593,7 +596,7 @@ final class CompositorService
      * @param string[] $tempFiles
      * @param callable(ProgressInfo): void|null $onProgress
      * @throws RenderException
-     * @throws RandomException|FFmpegNotFoundException
+     * @throws RandomException|FFmpegNotFoundException|JsonException
      */
     private function applyTransitions(
         array $segmentPaths,
@@ -712,11 +715,9 @@ final class CompositorService
         $command = [$this->ffmpeg->getFFmpegPath(), '-i', $videoPath];
         
         $filterParts = [];
-        $audioInputIndex = 1;
         
         if (!empty($audioTracks)) {
             $inputIndex = 1;
-            $filterParts = [];
             
             foreach ($audioTracks as $track) {
                 $offset = $track['startAt'] ?? 0.0;
@@ -740,7 +741,6 @@ final class CompositorService
                 
                 if ($fadeDuration > 0) {
                     $actualStart = $offset;
-                    $actualEnd = $endAt ?? 999999;
                     
                     $chain .= sprintf(',afade=t=in:st=%.3f:d=%.3f', $actualStart, min($fadeDuration, $actualStart));
                     
@@ -879,12 +879,18 @@ final class CompositorService
     /**
      * @param Clip[] $clips
      * @return Clip[]
+     * @throws RenderException
      */
     private function resolveDurations(array $clips): array
     {
         foreach ($clips as $clip) {
             if ($clip->duration <= 0 && $clip->isVideo()) {
-                $duration = $this->ffmpeg->getDuration($clip->videoPath);
+                try {
+                    $duration = $this->ffmpeg->getDuration($clip->videoPath);
+                } catch (FFmpegNotFoundException|JsonException $e) {
+                    throw RenderException::failed($e->getMessage());
+                }
+
                 if ($duration !== null) {
                     $clip->duration = $duration;
                     if ($clip->start !== null) {
@@ -1015,7 +1021,13 @@ final class CompositorService
      * @param bool $sourceHasAudio
      * @return array
      */
-    private function hasAudioClips(bool $hasAudioClips, array $command, array $audioLabels, int $audioClipCount, bool $sourceHasAudio): array
+    private function hasAudioClips(
+        bool $hasAudioClips,
+        array $command,
+        array $audioLabels,
+        int $audioClipCount,
+        bool $sourceHasAudio
+    ): array
     {
         if ($hasAudioClips) {
             $command[] = '-filter_complex';
