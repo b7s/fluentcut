@@ -377,17 +377,21 @@ class FluentCut
      */
     public function withAudio(
         string $path,
-        ?float $volume = 1.0,
-        float $startAt = 0.0,
-        ?float $duration = null
+        int|float|null $volume = 1.0,
+        int|float $startAt = 0.0,
+        int|float|null $endAt = null,
+        bool $loop = false,
+        float $fadeDuration = 0.0
     ): self {
         $this->assertFileExists($path);
 
         $this->audioTracks[] = [
             'path' => $path,
-            'volume' => $volume ?? 1.0,
-            'startAt' => max(0, $startAt),
-            'duration' => $duration,
+            'volume' => max(0.0, min(1.0, $volume ?? 1.0)),
+            'startAt' => max(0.0, $startAt),
+            'endAt' => $endAt !== null ? max(0.0, $endAt) : null,
+            'loop' => $loop,
+            'fadeDuration' => max(0.0, $fadeDuration),
         ];
 
         return $this;

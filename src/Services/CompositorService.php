@@ -384,6 +384,10 @@ final class CompositorService
     private function appendOverlaysFiltersAndOutput(array $command, Clip $clip, array $filters, int $width, int $height, int $fps, Codec $codec, string $outputPath, bool $useGpu, ?HardwareAccel $hardwareAccel): array
     {
         $hasImageOverlays = !empty($clip->imageOverlays);
+        $audioClipCount = count($clip->audioPaths);
+        $hasAudioClips = $audioClipCount > 0;
+        $sourceHasAudio = $clip->isVideo();
+        
         if ($hasImageOverlays) {
             foreach ($clip->imageOverlays as $overlay) {
                 $command = [...$command, '-i', $overlay->path];
@@ -394,12 +398,37 @@ final class CompositorService
             $command = [...$command, '-i', $audioFile];
         }
 
+        $audioLabels = [];
+        for ($i = 1; $i <= $audioClipCount; $i++) {
+            $audioLabels[] = "[{$i}:a]";
+        }
+
         if ($hasImageOverlays) {
             $filterChain = implode(',', $filters);
             $command = [...$command, '-filter_complex', $this->buildOverlayFilterComplex($clip->imageOverlays, $filterChain, $width, $height)];
             $command = [...$command, '-map', '[vout]'];
+            $command = $this->hasAudioClips($hasAudioClips, $command, $audioLabels, $audioClipCount, $sourceHasAudio);
         } elseif (!empty($filters)) {
             $command = [...$command, '-vf', implode(',', $filters)];
+            if ($hasAudioClips) {
+                $command[] = '-filter_complex';
+                $command[] = implode('', $audioLabels) . "amix=inputs={$audioClipCount}:duration=first[aout]";
+                $command[] = '-map';
+                $command[] = '0:v';
+                $command[] = '-map';
+                $command[] = '[aout]';
+            } else {
+                $command[] = '-map';
+                $command[] = '0:v';
+                if ($sourceHasAudio) {
+                    $command[] = '-map';
+                    $command[] = '0:a';
+                }
+            }
+        } else {
+            $command[] = '-map';
+            $command[] = '0:v';
+            $command = $this->hasAudioClips($hasAudioClips, $command, $audioLabels, $audioClipCount, $sourceHasAudio);
         }
 
         $outputArgs = $useGpu ? $hardwareAccel->gpuOutputArgs($codec) : $codec->defaultOutputArgs();
@@ -686,29 +715,57 @@ final class CompositorService
         $audioInputIndex = 1;
         
         if (!empty($audioTracks)) {
+            $inputIndex = 1;
+            $filterParts = [];
+            
             foreach ($audioTracks as $track) {
                 $offset = $track['startAt'] ?? 0.0;
-                if ($offset > 0) {
-                    $command[] = '-itsoffset';
-                    $command[] = sprintf('%.6f', $offset);
-                }
+                $volume = $track['volume'] ?? 1.0;
+                $loop = $track['loop'] ?? false;
+                $endAt = $track['endAt'] ?? null;
+                $fadeDuration = $track['fadeDuration'] ?? 0.5;
+                
                 $command[] = '-i';
                 $command[] = $track['path'];
                 
-                $filterParts[] = sprintf('[%d:a]volume=%.6f[a%d]', $audioInputIndex, $track['volume'], $audioInputIndex);
-                $audioInputIndex++;
+                $chain = sprintf('[%d:a]volume=%.6f', $inputIndex, $volume);
+                
+                if ($loop) {
+                    $chain .= ',aloop=loop=-1:size=2147483647:start=0';
+                }
+                
+                if ($offset > 0) {
+                    $chain .= sprintf(',adelay=%dms', (int)($offset * 1000));
+                }
+                
+                if ($fadeDuration > 0) {
+                    $actualStart = $offset;
+                    $actualEnd = $endAt ?? 999999;
+                    
+                    $chain .= sprintf(',afade=t=in:st=%.3f:d=%.3f', $actualStart, min($fadeDuration, $actualStart));
+                    
+                    if ($endAt !== null && $endAt > $fadeDuration) {
+                        $chain .= sprintf(',afade=t=out:st=%.3f:d=%.3f', $endAt - $fadeDuration, $fadeDuration);
+                    }
+                }
+                
+                if ($endAt !== null && $endAt > 0) {
+                    $chain .= sprintf(',atrim=end=%.6f', $endAt);
+                }
+                
+                $chain .= sprintf('[a%d]', $inputIndex);
+                $filterParts[] = $chain;
+                
+                $inputIndex++;
             }
-        }
-        
-        $inputCount = 1 + count($audioTracks);
-        
-        $audioLabels = [];
-        for ($i = 1; $i < $inputCount; $i++) {
-            $audioLabels[] = "[a{$i}]";
-        }
-        
-        if (!empty($audioLabels)) {
-            $filterParts[] = implode('', $audioLabels) . 'amix=inputs=' . count($audioLabels) . ':duration=longest[aout]';
+            
+            $audioLabels = [];
+            for ($i = 1; $i < $inputIndex; $i++) {
+                $audioLabels[] = "[a{$i}]";
+            }
+            
+            $filterParts[] = implode('', $audioLabels) . sprintf('amix=inputs=%d:duration=longest:dropout_transition=0[aout]', count($audioLabels));
+            
             $command[] = '-filter_complex';
             $command[] = implode(';', $filterParts);
             $command[] = '-map';
@@ -948,5 +1005,27 @@ final class CompositorService
         if (!file_exists($cachedPath)) {
             @copy($sourcePath, $cachedPath);
         }
+    }
+
+    /**
+     * @param bool $hasAudioClips
+     * @param array $command
+     * @param array $audioLabels
+     * @param int $audioClipCount
+     * @param bool $sourceHasAudio
+     * @return array
+     */
+    private function hasAudioClips(bool $hasAudioClips, array $command, array $audioLabels, int $audioClipCount, bool $sourceHasAudio): array
+    {
+        if ($hasAudioClips) {
+            $command[] = '-filter_complex';
+            $command[] = implode('', $audioLabels) . "amix=inputs={$audioClipCount}:duration=first[aout]";
+            $command[] = '-map';
+            $command[] = '[aout]';
+        } elseif ($sourceHasAudio) {
+            $command[] = '-map';
+            $command[] = '0:a';
+        }
+        return $command;
     }
 }

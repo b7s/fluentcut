@@ -391,14 +391,29 @@ Control the audio layer of your composition. Add background music, preserve sour
 // Single track with custom volume
 ->withAudio('bgm.mp3', volume: 0.7)
 
+// Loop audio until video ends (with fade in at start, fade out at end)
+->withAudio('bgm.mp3', loop: true)
+
+// Loop with custom fade duration
+->withAudio('bgm.mp3', loop: true, fadeDuration: 0.5)
+->withAudio('bgm.mp3', loop: true, fadeDuration: 1)
+->withAudio('bgm.mp3', loop: true, fadeDuration: 2.25)
+
 // Multiple audio tracks - each call adds a new track
 ->withAudio('intro.mp3', volume: 1.0)           // Track 1: full volume from start
 ->withAudio('background.mp3', volume: 0.5)      // Track 2: half volume from start
 ->withAudio('ending.mp3', volume: 0.8, startAt: 30.0)  // Track 3: starts at 30s
 
-// Multiple tracks with different start times and durations
-->withAudio('music.mp3', volume: 0.6, startAt: 0.0, duration: null)   // Plays from 0s until video ends
-->withAudio('narration.mp3', volume: 1.0, startAt: 5.0, duration: 30.0)  // Plays from 5s for 30s
+// Multiple tracks with different start times and cut times
+->withAudio('music.mp3', volume: 0.6, startAt: 0.0)   // Plays from 0s until video ends
+->withAudio('narration.mp3', volume: 1.0, startAt: 5.0, endAt: 35.0)  // Plays from 5s to 35s
+
+// Each track can have its own loop and fade settings
+->withAudio('loop-music.mp3', loop: true, fadeDuration: 0.3)  // Loop with quick fade
+->withAudio('intro.mp3', loop: false, fadeDuration: 0.5)      // No loop with default fade
+
+// Cut audio at specific time with fade out
+->withAudio('music.mp3', endAt: 30.0, fadeDuration: 0.5)
 
 // Keep audio from source video clips
 ->keepSourceAudio()
@@ -413,10 +428,12 @@ Control the audio layer of your composition. Add background music, preserve sour
 **Parameters:**
 - `path` (string) - Path to the audio file
 - `volume` (?float) - Volume level 0.0-1.0, defaults to 1.0
-- `startAt` (float) - Start offset in seconds, defaults to 0.0
-- `duration` (?float) - How long to play in seconds, null = play until video ends
+- `startAt` (int|float) - Start offset in seconds, defaults to 0.0
+- `endAt` (null|int|float) - Cut audio at this timestamp (seconds), null = play until video ends
+- `loop` (bool) - Loop audio until video ends, defaults to false
+- `fadeDuration` (float) - Fade in/out duration in seconds, defaults to 0.0
 
-**Note:** Each audio track plays once by default. If the audio is shorter than the video, it stops. Use `duration` to explicitly control how long each track plays.
+**Note:** Each audio track plays once by default unless `loop: true`. When looping, fade is applied at the start and end of each audio iteration for smooth transitions.
 
 ### Transitions
 
