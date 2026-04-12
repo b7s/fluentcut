@@ -190,7 +190,7 @@ $result = FluentCut::make()
     ->addVideo('outro.mp4', start: 0, end: 10)
     ->addText('Thanks for watching!', x: 'center', y: 'center', fontSize: 48)
     ->transition(Transition::Fade, 0.5)
-    ->withAudio('bgm.mp3', loop: true, volume: 0.7)
+    ->withAudio('bgm.mp3', volume: 0.7)
     ->keepSourceAudio()
     ->saveTo('output/composition.mp4')
     ->render();
@@ -382,21 +382,41 @@ Layer images on top of the last added clip, such as watermarks or logos.
 
 ### Audio
 
-Control the audio layer of your composition. Add background music, preserve source audio, and adjust volume levels.
+Control the audio layer of your composition. Add background music, preserve source audio, and adjust volume levels. You can add multiple audio tracks with independent control over volume, start time, and duration.
 
 ```php
-// Background music
-->withAudio('bgm.mp3', loop: true, volume: 0.7)
+// Single background music track (plays once, full volume)
+->withAudio('bgm.mp3')
+
+// Single track with custom volume
+->withAudio('bgm.mp3', volume: 0.7)
+
+// Multiple audio tracks - each call adds a new track
+->withAudio('intro.mp3', volume: 1.0)           // Track 1: full volume from start
+->withAudio('background.mp3', volume: 0.5)      // Track 2: half volume from start
+->withAudio('ending.mp3', volume: 0.8, startAt: 30.0)  // Track 3: starts at 30s
+
+// Multiple tracks with different start times and durations
+->withAudio('music.mp3', volume: 0.6, startAt: 0.0, duration: null)   // Plays from 0s until video ends
+->withAudio('narration.mp3', volume: 1.0, startAt: 5.0, duration: 30.0)  // Plays from 5s for 30s
 
 // Keep audio from source video clips
 ->keepSourceAudio()
 
-// Adjust audio volume (0.0 - 1.0)
+// Adjust volume of the last added audio track
 ->audioVolume(0.5)
 
-// Add audio specifically to the current clip
+// Add audio specifically to the current clip (not global)
 ->addAudioToClip('narration.mp3')
 ```
+
+**Parameters:**
+- `path` (string) - Path to the audio file
+- `volume` (?float) - Volume level 0.0-1.0, defaults to 1.0
+- `startAt` (float) - Start offset in seconds, defaults to 0.0
+- `duration` (?float) - How long to play in seconds, null = play until video ends
+
+**Note:** Each audio track plays once by default. If the audio is shorter than the video, it stops. Use `duration` to explicitly control how long each track plays.
 
 ### Transitions
 

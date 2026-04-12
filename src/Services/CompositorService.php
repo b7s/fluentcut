@@ -79,6 +79,7 @@ final class CompositorService
         ?Codec $codec = null,
         ?Transition $transition = null,
         float $transitionDuration = 0.5,
+        array $audioTracks = [],
         ?string $audioPath = null,
         bool $loopAudio = false,
         ?float $audioVolume = null,
@@ -119,6 +120,7 @@ final class CompositorService
             format: $format,
             transition: $transition,
             transitionDuration: $transitionDuration,
+            audioTracks: $audioTracks,
             audioPath: $audioPath,
             loopAudio: $loopAudio,
             audioVolume: $audioVolume,
@@ -148,14 +150,15 @@ final class CompositorService
         Format $format,
         ?Transition $transition,
         float $transitionDuration,
-        ?string $audioPath,
-        bool $loopAudio,
-        ?float $audioVolume,
-        bool $keepSourceAudio,
-        int $timeout,
-        bool $verbose,
-        ?callable $onProgress,
-        float $totalDuration,
+        array $audioTracks = [],
+        ?string $audioPath = null,
+        bool $loopAudio = false,
+        ?float $audioVolume = null,
+        bool $keepSourceAudio = true,
+        int $timeout = 0,
+        bool $verbose = false,
+        ?callable $onProgress = null,
+        float $totalDuration = 0.0,
         ?HardwareAccel $hardwareAccel = null,
         int $maxConcurrentSegments = 0,
         bool $forceCpu = false,
@@ -195,7 +198,7 @@ final class CompositorService
 
         $needsConcat = count($segmentPaths) > 1;
         $needsTransitions = $needsConcat && $transition !== null && $transition !== Transition::None;
-        $needsAudio = $audioPath !== null;
+        $needsAudio = !empty($audioTracks);
 
         if (!$needsConcat && !$needsAudio) {
             $finalPath = $segmentPaths[0];
@@ -203,7 +206,7 @@ final class CompositorService
             $finalPath = $this->applyTransitions(
                 $segmentPaths, $width, $height, $fps, $codec,
                 $transition, $transitionDuration,
-                $audioPath, $loopAudio, $audioVolume, $keepSourceAudio,
+                $audioTracks, $audioPath, $loopAudio, $audioVolume, $keepSourceAudio,
                 $verbose, $tempFiles, $onProgress, $fps, $totalDuration, $timeout,
             );
         } else {
@@ -213,7 +216,7 @@ final class CompositorService
         if ($needsAudio && !$needsTransitions) {
             $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . self::randomName() . '.mp4';
             $tempFiles[] = $mixedPath;
-            $this->mixAudio($finalPath, $audioPath, $mixedPath, $loopAudio, $audioVolume, $keepSourceAudio, $verbose, $onProgress, $fps, $totalDuration, $timeout);
+            $this->mixAudio($finalPath, $audioTracks, $mixedPath, $audioPath, $loopAudio, $audioVolume, $keepSourceAudio, $verbose, $onProgress, $fps, $totalDuration, $timeout);
             $finalPath = $mixedPath;
         }
 
@@ -571,12 +574,13 @@ final class CompositorService
         Codec $codec,
         Transition $transition,
         float $transitionDuration,
-        ?string $audioPath,
-        bool $loopAudio,
-        ?float $audioVolume,
-        bool $keepSourceAudio,
-        bool $verbose,
-        array &$tempFiles,
+        array $audioTracks = [],
+        ?string $audioPath = null,
+        bool $loopAudio = false,
+        ?float $audioVolume = null,
+        bool $keepSourceAudio = true,
+        bool $verbose = false,
+        array &$tempFiles = [],
         ?callable $onProgress = null,
         int $clipFps = 30,
         float $totalDuration = 0.0,
@@ -645,10 +649,10 @@ final class CompositorService
 
         $this->ffmpeg->invalidateProbeCache($finalPath);
 
-        if ($audioPath !== null) {
+        if (!empty($audioTracks)) {
             $mixedPath = sys_get_temp_dir() . '/fluentcut_mixed_' . self::randomName() . '.mp4';
             $tempFiles[] = $mixedPath;
-            $this->mixAudio($finalPath, $audioPath, $mixedPath, $loopAudio, $audioVolume, $keepSourceAudio, $verbose, $onProgress, $clipFps, $totalDuration, $timeout);
+            $this->mixAudio($finalPath, $audioTracks, $mixedPath, $audioPath, $loopAudio, $audioVolume, $keepSourceAudio, $verbose, $onProgress, $clipFps, $totalDuration, $timeout);
 
             return $mixedPath;
         }
@@ -664,35 +668,58 @@ final class CompositorService
      */
     private function mixAudio(
         string $videoPath,
-        string $audioPath,
+        array $audioTracks,
         string $outputPath,
-        bool $loopAudio,
-        ?float $audioVolume,
-        bool $keepSourceAudio,
-        bool $verbose,
+        ?string $legacyAudioPath = null,
+        bool $legacyLoopAudio = false,
+        ?float $legacyAudioVolume = null,
+        bool $keepSourceAudio = true,
+        bool $verbose = false,
         ?callable $onProgress = null,
         int $clipFps = 30,
         float $totalDuration = 0.0,
         int $timeout = 0,
     ): void {
         $command = [$this->ffmpeg->getFFmpegPath(), '-i', $videoPath];
-
-        if ($loopAudio) {
-            $command = [...$command, '-stream_loop', '-1'];
-        }
-
-        $command = [...$command, '-i', $audioPath];
-
-        if ($keepSourceAudio && $this->ffmpeg->hasAudioStream($videoPath)) {
-            $command[] = '-filter_complex';
-            $vol = $audioVolume ?? 1.0;
-            $command[] = "[0:a]aresample=44100[bg];[1:a]aresample=44100,volume={$vol}[fg];[bg][fg]amix=inputs=2:duration=first[aout]";
-            $command = [...$command, '-map', '0:v', '-map', '[aout]'];
-        } else {
-            $command = [...$command, '-map', '0:v', '-map', '1:a'];
-            if ($audioVolume !== null) {
-                $command = [...$command, '-af', "volume={$audioVolume}"];
+        
+        $filterParts = [];
+        $audioInputIndex = 1;
+        
+        if (!empty($audioTracks)) {
+            foreach ($audioTracks as $track) {
+                $offset = $track['startAt'] ?? 0.0;
+                if ($offset > 0) {
+                    $command[] = '-itsoffset';
+                    $command[] = sprintf('%.6f', $offset);
+                }
+                $command[] = '-i';
+                $command[] = $track['path'];
+                
+                $filterParts[] = sprintf('[%d:a]volume=%.6f[a%d]', $audioInputIndex, $track['volume'], $audioInputIndex);
+                $audioInputIndex++;
             }
+        }
+        
+        $inputCount = 1 + count($audioTracks);
+        
+        $audioLabels = [];
+        for ($i = 1; $i < $inputCount; $i++) {
+            $audioLabels[] = "[a{$i}]";
+        }
+        
+        if (!empty($audioLabels)) {
+            $filterParts[] = implode('', $audioLabels) . 'amix=inputs=' . count($audioLabels) . ':duration=longest[aout]';
+            $command[] = '-filter_complex';
+            $command[] = implode(';', $filterParts);
+            $command[] = '-map';
+            $command[] = '0:v';
+            $command[] = '-map';
+            $command[] = '[aout]';
+        } else {
+            $command[] = '-map';
+            $command[] = '0:v';
+            $command[] = '-map';
+            $command[] = '1:a';
         }
 
         $command = [...$command, '-c:v', 'copy', '-c:a', 'aac', '-shortest', '-y', $outputPath];
@@ -732,7 +759,7 @@ final class CompositorService
                 $clips, $width, $height, $fps, $tempVideoPath,
                 Codec::H264, Format::Mp4,
                 $transition, $transitionDuration,
-                null, false, null, false,
+                [], null, false, null, false,
                 $timeout, $verbose,
                 $onProgress, $totalDuration,
             );

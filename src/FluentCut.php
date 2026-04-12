@@ -75,6 +75,8 @@ class FluentCut
     private ?string $audioPath = null;
     private bool $loopAudio = false;
     private ?float $audioVolume = null;
+    /** @var array{path: string, volume: float, startAt: float, duration: ?float}[] */
+    private array $audioTracks = [];
     private bool $keepSourceAudio = true;
     private ResizeMode $resizeMode;
     private int $timeout;
@@ -373,13 +375,20 @@ class FluentCut
     /**
      * @throws RenderException
      */
-    public function withAudio(string $path, bool $loop = false, ?float $volume = null): self
-    {
+    public function withAudio(
+        string $path,
+        ?float $volume = 1.0,
+        float $startAt = 0.0,
+        ?float $duration = null
+    ): self {
         $this->assertFileExists($path);
 
-        $this->audioPath = $path;
-        $this->loopAudio = $loop;
-        $this->audioVolume = $volume;
+        $this->audioTracks[] = [
+            'path' => $path,
+            'volume' => $volume ?? 1.0,
+            'startAt' => max(0, $startAt),
+            'duration' => $duration,
+        ];
 
         return $this;
     }
@@ -393,7 +402,9 @@ class FluentCut
 
     public function audioVolume(float $volume): self
     {
-        $this->audioVolume = max(0, $volume);
+        if (!empty($this->audioTracks)) {
+            $this->audioTracks[array_key_last($this->audioTracks)]['volume'] = max(0, min(1, $volume));
+        }
 
         return $this;
     }
@@ -640,9 +651,8 @@ class FluentCut
             codec: $this->codec,
             transition: $this->transition,
             transitionDuration: $this->transitionDuration,
-            audioPath: $this->audioPath,
-            loopAudio: $this->loopAudio,
-            audioVolume: $this->audioVolume,
+            audioPath: null,
+            audioTracks: $this->audioTracks,
             keepSourceAudio: $this->keepSourceAudio,
             timeout: $this->timeout,
             verbose: $this->verbose,
