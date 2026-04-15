@@ -276,8 +276,10 @@ final class CompositorService
         return $segmentPaths;
     }
 
-/**
+    /**
      * @param string[] $command
+     * @param Clip $clip
+     * @param int $width
      * @param int $height
      * @param int $fps
      * @param string $outputPath
@@ -290,7 +292,20 @@ final class CompositorService
      * @return string
      * @throws RenderException
      */
-    private function executeSegmentRender(array $command, Clip $clip, int $width, int $height, int $fps, string $outputPath, ?callable $onProgress, int $clipFps, int $index, int $totalSegments, float $totalDuration, int $timeout): string
+    private function executeSegmentRender(
+        array $command,
+        Clip $clip,
+        int $width,
+        int $height,
+        int $fps,
+        string $outputPath,
+        ?callable $onProgress,
+        int $clipFps,
+        int $index,
+        int $totalSegments,
+        float $totalDuration,
+        int $timeout
+    ): string
     {
         $process = $onProgress !== null
             ? $this->ffmpeg->runWithProgress(
@@ -317,7 +332,7 @@ final class CompositorService
 
     /**
      * @return string[]
-     * @throws RenderException
+     * @throws RenderException|FFmpegNotFoundException
      */
     private function buildSegmentCommand(Clip $clip, int $width, int $height, int $fps, Codec $codec, string $outputPath, ?HardwareAccel $hardwareAccel = null): array
     {
@@ -339,9 +354,19 @@ final class CompositorService
     /**
      * @param string[] &$tempFiles
      * @return array{path: string, command: string[]}
-     * @throws RenderException|RandomException
+     * @throws RenderException|RandomException|FFmpegNotFoundException
      */
-    private function prepareSegmentJob(Clip $clip, int $index, int $width, int $height, int $fps, Codec $codec, ?HardwareAccel $hardwareAccel, bool $verbose, array &$tempFiles): array
+    private function prepareSegmentJob(
+        Clip $clip,
+        int $index,
+        int $width,
+        int $height,
+        int $fps,
+        Codec $codec,
+        ?HardwareAccel $hardwareAccel,
+        bool $verbose,
+        array &$tempFiles
+    ): array
     {
         $segmentPath = sys_get_temp_dir() . '/fluentcut_seg_' . $index . '_' . self::randomName() . '.mp4';
         $tempFiles[] = $segmentPath;

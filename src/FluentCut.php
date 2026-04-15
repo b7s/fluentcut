@@ -387,7 +387,7 @@ class FluentCut
 
         $this->audioTracks[] = [
             'path' => $path,
-            'volume' => max(0.0, min(1.0, $volume ?? 1.0)),
+            'volume' => max(0.0, $volume ?? 1.0),
             'startAt' => max(0.0, $startAt),
             'endAt' => $endAt !== null ? max(0.0, $endAt) : null,
             'loop' => $loop,
@@ -407,7 +407,7 @@ class FluentCut
     public function audioVolume(float $volume): self
     {
         if (!empty($this->audioTracks)) {
-            $this->audioTracks[array_key_last($this->audioTracks)]['volume'] = max(0, min(1, $volume));
+            $this->audioTracks[array_key_last($this->audioTracks)]['volume'] = max(0, $volume);
         }
 
         return $this;
@@ -655,8 +655,8 @@ class FluentCut
             codec: $this->codec,
             transition: $this->transition,
             transitionDuration: $this->transitionDuration,
-            audioPath: null,
             audioTracks: $this->audioTracks,
+            audioPath: null,
             keepSourceAudio: $this->keepSourceAudio,
             timeout: $this->timeout,
             verbose: $this->verbose,
