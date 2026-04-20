@@ -34,15 +34,15 @@ enum VideoEffect: string
     {
         return match ($this) {
             self::None => '',
-            self::SoftZoom, self::ZoomCenter => $this->zoomPanFilter($width, $height, $duration, $fps, $isVideo, 'iw/2-(iw/zoom/2)', 'ih/2-(ih/zoom/2)'),
-            self::ZoomTopLeft => $this->zoomPanFilter($width, $height, $duration, $fps, $isVideo, '0', '0'),
-            self::ZoomTopCenter => $this->zoomPanFilter($width, $height, $duration, $fps, $isVideo, 'iw/2-(iw/zoom/2)', '0'),
-            self::ZoomTopRight => $this->zoomPanFilter($width, $height, $duration, $fps, $isVideo, 'iw-iw/zoom', '0'),
-            self::ZoomCenterLeft => $this->zoomPanFilter($width, $height, $duration, $fps, $isVideo, '0', 'ih/2-(ih/zoom/2)'),
-            self::ZoomCenterRight => $this->zoomPanFilter($width, $height, $duration, $fps, $isVideo, 'iw-iw/zoom', 'ih/2-(ih/zoom/2)'),
-            self::ZoomBottomLeft => $this->zoomPanFilter($width, $height, $duration, $fps, $isVideo, '0', 'ih-ih/zoom'),
-            self::ZoomBottomCenter => $this->zoomPanFilter($width, $height, $duration, $fps, $isVideo, 'iw/2-(iw/zoom/2)', 'ih-ih/zoom'),
-            self::ZoomBottomRight => $this->zoomPanFilter($width, $height, $duration, $fps, $isVideo, 'iw-iw/zoom', 'ih-ih/zoom'),
+            self::SoftZoom, self::ZoomCenter => $this->zoomFilter($width, $height, $duration, "(iw-{$width})/2", "(ih-{$height})/2"),
+            self::ZoomTopLeft => $this->zoomFilter($width, $height, $duration, '0', '0'),
+            self::ZoomTopCenter => $this->zoomFilter($width, $height, $duration, "(iw-{$width})/2", '0'),
+            self::ZoomTopRight => $this->zoomFilter($width, $height, $duration, "iw-{$width}", '0'),
+            self::ZoomCenterLeft => $this->zoomFilter($width, $height, $duration, '0', "(ih-{$height})/2"),
+            self::ZoomCenterRight => $this->zoomFilter($width, $height, $duration, "iw-{$width}", "(ih-{$height})/2"),
+            self::ZoomBottomLeft => $this->zoomFilter($width, $height, $duration, '0', "ih-{$height}"),
+            self::ZoomBottomCenter => $this->zoomFilter($width, $height, $duration, "(iw-{$width})/2", "ih-{$height}"),
+            self::ZoomBottomRight => $this->zoomFilter($width, $height, $duration, "iw-{$width}", "ih-{$height}"),
             self::Grayscale => 'format=gray',
             self::Sepia => 'colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131',
             self::Blur => 'boxblur=5:1',
@@ -69,21 +69,31 @@ enum VideoEffect: string
         };
     }
 
-    private function zoomPanFilter(int $width, int $height, float $duration, int $fps, bool $isVideo, string $xExpr, string $yExpr, float $zoomAmount = 0.15): string
+    private function zoomFilter(int $width, int $height, float $duration, string $cropX, string $cropY, float $zoomAmount = 0.3): string
     {
         if ($duration <= 0 || $width <= 0 || $height <= 0) {
             return '';
         }
 
-        $totalFrames = (int) ceil($duration * $fps);
         $zoom = sprintf('%.2f', $zoomAmount);
-        $maxZoom = sprintf('%.2f', 1 + $zoomAmount);
+        $dur = sprintf('%.6f', $duration);
+        
+        // Smooth progression from 0 to 1 using cosine easing
+        $progression = "0.5-0.5*cos(t*PI/{$dur})";
+        
+        // Zoom factor: starts at 1.0, ends at (1.0 + zoomAmount)
+        $zoomFactor = "1+{$zoom}*({$progression})";
+        
+        // To zoom into a specific point, we need to:
+        // 1. Find the center point of the initial crop: (cropX + width/2, cropY + height/2)
+        // 2. Scale that point by the zoom factor
+        // 3. Adjust back to get the crop position: scaledPoint - width/2
+        // Formula: cropX_scaled = (cropX + width/2) * z - width/2
+        // Simplified: cropX_scaled = cropX * z + (width/2) * (z - 1)
+        $adjustedCropX = "({$cropX})*({$zoomFactor})+({$width}/2)*(({$zoomFactor})-1)";
+        $adjustedCropY = "({$cropY})*({$zoomFactor})+({$height}/2)*(({$zoomFactor})-1)";
 
-        if ($isVideo) {
-            return "zoompan=z='min(max(zoom,pzoom)+{$zoom}/{$totalFrames},{$maxZoom})':d=1:x='{$xExpr}':y='{$yExpr}':s={$width}x{$height}:fps={$fps}";
-        }
-
-        return "zoompan=z='1+{$zoom}*(on/{$totalFrames})':d={$totalFrames}:x='{$xExpr}':y='{$yExpr}':s={$width}x{$height}:fps={$fps}";
+        return "scale='iw*({$zoomFactor})':'ih*({$zoomFactor})':eval=frame,crop={$width}:{$height}:{$adjustedCropX}:{$adjustedCropY}";
     }
 
     public function description(): string

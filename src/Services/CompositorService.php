@@ -506,7 +506,7 @@ final class CompositorService
         $hasZoom = count(array_filter($clip->effects, static fn (VideoEffect $e) => $e->isZoom())) > 0;
 
         if ($hasZoom) {
-            $command = [...$command, '-i', $clip->imagePath];
+            $command = [...$command, '-loop', '1', '-framerate', (string) $fps, '-i', $clip->imagePath];
         } else {
             $command = [...$command, '-loop', '1', '-i', $clip->imagePath];
         }

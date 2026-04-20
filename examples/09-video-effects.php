@@ -12,13 +12,13 @@ $assets = __DIR__ . '/../examples/assets';
 
 $result = FluentCut::make()
     ->fullHd()
-    ->addImage("{$assets}/slide1.jpg", duration: 3, effect: [VideoEffect::SoftZoom, VideoEffect::EdgeDetect])
-    ->addText('Soft Zoom + Edge Detect', x: 'center', y: 256, fontSize: 36, borderWidth: 2)
+    ->addImage("{$assets}/slide1.jpg", duration: 3, effect: [VideoEffect::ZoomCenter, VideoEffect::EdgeDetect])
+    ->addText('Zoom Center + Edge Detect', x: 'center', y: 256, fontSize: 36, borderWidth: 2)
     ->addImage("{$assets}/slide2.jpg", duration: 3, effect: VideoEffect::Sepia)
     ->addText('Sepia', x: 'center', y: 'bottom', fontSize: 36, borderWidth: 2)
     ->addImage("{$assets}/slide3.jpg", duration: 3)
-    ->effect(VideoEffect::Grayscale, VideoEffect::Sharpen, VideoEffect::SoftZoom)
-    ->addText('Grayscale + Sharpen + Zoom', x: 'center', y: 'bottom', fontSize: 36, borderWidth: 2)
+    ->effect(VideoEffect::Grayscale, VideoEffect::Sharpen, VideoEffect::ZoomTopRight)
+    ->addText('Grayscale + Sharpen + Zoom Top Right', x: 'center', y: 'bottom', fontSize: 36, borderWidth: 2)
     ->addImage("{$assets}/slide1.jpg", duration: 3, effect: [VideoEffect::Sepia, VideoEffect::Vignette])
     ->addText('Sepia + Vignette', x: 'center', y: 100, fontSize: 36, borderWidth: 2)
     ->addImage("{$assets}/slide1.jpg", duration: 3, effect: [VideoEffect::SoftZoom, VideoEffect::EdgeDetect]) // should use the cache
