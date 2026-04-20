@@ -72,6 +72,8 @@ class FluentCut
     private ?Codec $codec = null;
     private ?Transition $transition = null;
     private float $transitionDuration = 0.5;
+    private ?Transition $pendingTransition = null;
+    private float $pendingTransitionDuration = 0.5;
     private ?string $audioPath = null;
     private bool $loopAudio = false;
     private ?float $audioVolume = null;
@@ -186,6 +188,15 @@ class FluentCut
         $clip = Clip::fromVideo($path, $start, $end);
         $clip->resizeMode = $this->resizeMode;
         $clip->effects = self::normalizeEffects($effect);
+        
+        // Apply pending transition to this clip
+        if ($this->pendingTransition !== null) {
+            $clip->transition = $this->pendingTransition;
+            $clip->transitionDuration = $this->pendingTransitionDuration;
+            $this->pendingTransition = null;
+            $this->pendingTransitionDuration = 0.5;
+        }
+        
         $this->clips[] = $clip;
 
         return $this;
@@ -215,6 +226,15 @@ class FluentCut
         $clip = Clip::fromImage($path, $duration);
         $clip->resizeMode = $this->resizeMode;
         $clip->effects = self::normalizeEffects($effect);
+        
+        // Apply pending transition to this clip
+        if ($this->pendingTransition !== null) {
+            $clip->transition = $this->pendingTransition;
+            $clip->transitionDuration = $this->pendingTransitionDuration;
+            $this->pendingTransition = null;
+            $this->pendingTransitionDuration = 0.5;
+        }
+        
         $this->clips[] = $clip;
 
         return $this;
@@ -246,6 +266,15 @@ class FluentCut
     {
         $clip = Clip::fromColor($color, $duration);
         $clip->effects = self::normalizeEffects($effect);
+        
+        // Apply pending transition to this clip
+        if ($this->pendingTransition !== null) {
+            $clip->transition = $this->pendingTransition;
+            $clip->transitionDuration = $this->pendingTransitionDuration;
+            $this->pendingTransition = null;
+            $this->pendingTransitionDuration = 0.5;
+        }
+        
         $this->clips[] = $clip;
 
         return $this;
@@ -432,8 +461,8 @@ class FluentCut
 
     public function transition(Transition $type, float $duration = 0.5): self
     {
-        $this->transition = $type;
-        $this->transitionDuration = max(0, $duration);
+        $this->pendingTransition = $type;
+        $this->pendingTransitionDuration = max(0, $duration);
 
         return $this;
     }

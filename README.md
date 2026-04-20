@@ -21,7 +21,7 @@ Whether you're automating video generation, building media pipelines, or creatin
 - ✍️ **Text Overlays** - Add styled text with borders, shadows, and custom positioning
 - 🖼️ **Image Overlays** - Layer images on top of clips with precise positioning
 - 🎵 **Audio Control** - Add background music, keep source audio, and adjust volume
-- 🔄 **Transitions** - 12 built-in transitions including fades, wipes, slides, and dissolves
+- 🔄 **Transitions** - 30 built-in transitions including fades, wipes, slides, dissolves, radial, circle effects, and more
 - 🎨 **Video Effects** - 14 built-in visual effects with stackable combinations: soft zoom (Ken Burns), sepia, grayscale, vignette, and more
 - 📐 **Smart Resize** - Four resize modes: contain, contain with blur, cover, and stretch
 - ⚡ **Presets** - One‑call presets for slideshows, social media, GIFs, and web output
@@ -446,6 +446,8 @@ use B7s\FluentCut\Enums\Transition;
 ->transition(Transition::Fade, 0.5)
 ->transition(Transition::WipeLeft, 0.3)
 ->transition(Transition::Dissolve, 1.0)
+->transition(Transition::CircleOpen, 0.8)
+->transition(Transition::Radial, 1.0)
 
 // Shorthand presets
 ->fade(0.5)               // Crossfade
@@ -453,7 +455,40 @@ use B7s\FluentCut\Enums\Transition;
 ->noTransition()          // Hard cut
 ```
 
-**Available transitions:** `Fade`, `FadeBlack`, `FadeWhite`, `WipeLeft`, `WipeRight`, `WipeUp`, `WipeDown`, `SlideLeft`, `SlideRight`, `Dissolve`, `None`
+**Available transitions:**
+
+| Transition | Description |
+|---|---|
+| `None` | Hard cut (no transition) |
+| `Fade` | Smooth crossfade between clips |
+| `FadeBlack` | Fade through black |
+| `FadeWhite` | Fade through white |
+| `FadeGrays` | Fade through grayscale |
+| `Dissolve` | Pixel dissolve blend |
+| `WipeLeft` | Wipe from right to left |
+| `WipeRight` | Wipe from left to right |
+| `WipeUp` | Wipe from bottom to top |
+| `WipeDown` | Wipe from top to bottom |
+| `SlideLeft` | Slide from left |
+| `SlideRight` | Slide from right |
+| `SlideUp` | Slide from bottom |
+| `SlideDown` | Slide from top |
+| `Radial` | Radial wipe from center |
+| `CircleOpen` | Circle opening from center |
+| `CircleClose` | Circle closing to center |
+| `CircleCrop` | Circular crop transition |
+| `RectCrop` | Rectangular crop transition |
+| `Distance` | Distance-based blend |
+| `Pixelize` | Pixelization effect |
+| `HorizontalBlur` | Horizontal blur transition |
+| `HorizontalLeftSlice` | Horizontal slice from left |
+| `HorizontalRightSlice` | Horizontal slice from right |
+| `VerticalUpSlice` | Vertical slice upward |
+| `VerticalDownSlice` | Vertical slice downward |
+| `DiagonalTopLeft` | Diagonal from top-left |
+| `DiagonalTopRight` | Diagonal from top-right |
+| `DiagonalBottomLeft` | Diagonal from bottom-left |
+| `DiagonalBottomRight` | Diagonal from bottom-right |
 
 ### Video Effects
 

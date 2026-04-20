@@ -202,15 +202,14 @@ final class CompositorService
         }
 
         $needsConcat = count($segmentPaths) > 1;
-        $needsTransitions = $needsConcat && $transition !== null && $transition !== Transition::None;
+        $needsTransitions = $needsConcat && $this->hasAnyTransitions($clips);
         $needsAudio = ! empty($audioTracks);
 
         if (! $needsConcat && ! $needsAudio) {
             $finalPath = $segmentPaths[0];
         } elseif ($needsTransitions) {
             $finalPath = $this->applyTransitions(
-                $segmentPaths, $width, $height, $fps, $codec,
-                $transition, $transitionDuration,
+                $clips, $segmentPaths, $width, $height, $fps, $codec,
                 $audioTracks, $audioPath, $loopAudio, $audioVolume, $keepSourceAudio,
                 $verbose, $tempFiles, $onProgress, $fps, $totalDuration, $timeout,
             );
@@ -624,6 +623,21 @@ final class CompositorService
     }
 
     /**
+     * @param  Clip[]  $clips
+     */
+    private function hasAnyTransitions(array $clips): bool
+    {
+        foreach ($clips as $clip) {
+            if ($clip->transition !== null && $clip->transition !== Transition::None) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  Clip[]  $clips
      * @param  string[]  $segmentPaths
      * @param  string[]  $tempFiles
      * @param  callable(ProgressInfo): void|null  $onProgress
@@ -632,13 +646,12 @@ final class CompositorService
      * @throws RandomException|FFmpegNotFoundException|JsonException
      */
     private function applyTransitions(
+        array $clips,
         array $segmentPaths,
         int $width,
         int $height,
         int $fps,
         Codec $codec,
-        Transition $transition,
-        float $transitionDuration,
         array $audioTracks = [],
         ?string $audioPath = null,
         bool $loopAudio = false,
@@ -662,7 +675,6 @@ final class CompositorService
             $command = [...$command, '-i', $path];
         }
 
-        $xfadeType = $transition->toFFmpegXFilter();
         $filterParts = [];
         $cumulativeDuration = 0.0;
         $lastLabel = '[0:v]';
@@ -671,6 +683,19 @@ final class CompositorService
             $cumulativeDuration += $durations[$i - 1];
             $isLast = $i === $count - 1;
             $outLabel = $isLast ? '[vout]' : "[v{$i}]";
+            
+            // Get transition from the current clip (clip at index $i)
+            $clip = $clips[$i];
+            $transition = $clip->transition ?? Transition::Fade;
+            $transitionDuration = $clip->transitionDuration;
+            
+            // Skip transition if set to None
+            if ($transition === Transition::None) {
+                $transitionDuration = 0.0;
+                $transition = Transition::Fade; // Use fade with 0 duration for hard cut
+            }
+            
+            $xfadeType = $transition->toFFmpegXFilter();
             $offset = max(0, $cumulativeDuration - $transitionDuration);
 
             $filterParts[] = sprintf(

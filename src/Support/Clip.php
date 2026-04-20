@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace B7s\FluentCut\Support;
 
 use B7s\FluentCut\Enums\ResizeMode;
+use B7s\FluentCut\Enums\Transition;
 use B7s\FluentCut\Enums\VideoEffect;
 use B7s\FluentCut\Exceptions\RenderException;
 
@@ -29,6 +30,8 @@ final class Clip
     public ?float $end = null;
     public ?string $backgroundColor = null;
     public ResizeMode $resizeMode;
+    public ?Transition $transition = null;
+    public float $transitionDuration = 0.5;
 
     /** @var VideoEffect[] */
     public array $effects = [];
@@ -107,6 +110,8 @@ final class Clip
             implode(',', array_map(fn($t) => $this->serializeTextOverlay($t), $this->textOverlays)),
             implode(',', array_map(static fn($o) => "{$o->path}|{$o->position->x}|{$o->position->y}", $this->imageOverlays)),
             implode(',', $this->audioPaths),
+            $this->transition?->value ?? 'none',
+            (string) $this->transitionDuration,
             "{$width}x{$height}x{$fps}",
         ];
 
