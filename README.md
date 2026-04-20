@@ -22,7 +22,7 @@ Whether you're automating video generation, building media pipelines, or creatin
 - 🖼️ **Image Overlays** - Layer images on top of clips with precise positioning
 - 🎵 **Audio Control** - Add background music, keep source audio, and adjust volume
 - 🔄 **Transitions** - 30 built-in transitions including fades, wipes, slides, dissolves, radial, circle effects, and more
-- 🎨 **Video Effects** - 14 built-in visual effects with stackable combinations: soft zoom (Ken Burns), sepia, grayscale, vignette, and more
+- 🎨 **Video Effects** - 23 built-in visual effects with stackable combinations: directional zoom (9 positions), sepia, grayscale, vignette, and more
 - 📐 **Smart Resize** - Four resize modes: contain, contain with blur, cover, and stretch
 - ⚡ **Presets** - One‑call presets for slideshows, social media, GIFs, and web output
 - 🔒 **Type‑Safe** - Full PHP 8.3+ type hints / PHPStan level 6
@@ -519,7 +519,16 @@ use B7s\FluentCut\Enums\VideoEffect;
 | Effect | Description |
 |---|---|
 | `VideoEffect::None` | No effect (default) |
-| `VideoEffect::SoftZoom` | Slow zoom in (Ken Burns effect) |
+| `VideoEffect::SoftZoom` | Slow zoom in to center (Ken Burns effect) |
+| `VideoEffect::ZoomCenter` | Slow zoom in to center |
+| `VideoEffect::ZoomTopLeft` | Slow zoom in to top-left |
+| `VideoEffect::ZoomTopCenter` | Slow zoom in to top-center |
+| `VideoEffect::ZoomTopRight` | Slow zoom in to top-right |
+| `VideoEffect::ZoomCenterLeft` | Slow zoom in to center-left |
+| `VideoEffect::ZoomCenterRight` | Slow zoom in to center-right |
+| `VideoEffect::ZoomBottomLeft` | Slow zoom in to bottom-left |
+| `VideoEffect::ZoomBottomCenter` | Slow zoom in to bottom-center |
+| `VideoEffect::ZoomBottomRight` | Slow zoom in to bottom-right |
 | `VideoEffect::Grayscale` | Convert to grayscale |
 | `VideoEffect::Sepia` | Sepia tone (vintage warm look) |
 | `VideoEffect::Blur` | Gaussian blur |
