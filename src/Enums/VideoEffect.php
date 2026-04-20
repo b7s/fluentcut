@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace B7s\FluentCut\Enums;
 
+use function sprintf;
+
 enum VideoEffect: string
 {
     case None = 'none';
@@ -84,16 +86,27 @@ enum VideoEffect: string
         // Zoom factor: starts at 1.0, ends at (1.0 + zoomAmount)
         $zoomFactor = "1+{$zoom}*({$progression})";
         
-        // To zoom into a specific point, we need to:
-        // 1. Find the center point of the initial crop: (cropX + width/2, cropY + height/2)
-        // 2. Scale that point by the zoom factor
-        // 3. Adjust back to get the crop position: scaledPoint - width/2
-        // Formula: cropX_scaled = (cropX + width/2) * z - width/2
-        // Simplified: cropX_scaled = cropX * z + (width/2) * (z - 1)
-        $adjustedCropX = "({$cropX})*({$zoomFactor})+({$width}/2)*(({$zoomFactor})-1)";
-        $adjustedCropY = "({$cropY})*({$zoomFactor})+({$height}/2)*(({$zoomFactor})-1)";
+        // For a smooth zoom without X/Y drift, we need to ensure the crop window
+        // stays centered on the same relative point in the image.
+        // 
+        // The key insight: after scaling by z, to maintain the same relative position,
+        // we need to scale the crop coordinates proportionally.
+        // 
+        // For expressions like "(iw-W)/2" (center), after scaling:
+        // - Scaled image width: iw*z
+        // - To keep centered: (iw*z - W)/2 = (iw-W)/2 * z + W/2 * (z-1)
+        // 
+        // But this causes drift because the expression is evaluated with the original iw.
+        // Solution: Use zoompan filter approach - scale and crop in one smooth operation.
+        // 
+        // Alternative: Rewrite crop expressions to work with scaled dimensions
+        // by replacing 'iw' with 'iw*z' and 'ih' with 'ih*z' in the expressions.
+        
+        // Replace iw and ih in the crop expressions with scaled versions
+        $scaledCropX = str_replace(['iw', 'ih'], ["(iw*({$zoomFactor}))", "(ih*({$zoomFactor}))"], $cropX);
+        $scaledCropY = str_replace(['iw', 'ih'], ["(iw*({$zoomFactor}))", "(ih*({$zoomFactor}))"], $cropY);
 
-        return "scale='iw*({$zoomFactor})':'ih*({$zoomFactor})':eval=frame,crop={$width}:{$height}:{$adjustedCropX}:{$adjustedCropY}";
+        return "scale='iw*({$zoomFactor})':'ih*({$zoomFactor})':eval=frame,crop={$width}:{$height}:{$scaledCropX}:{$scaledCropY}";
     }
 
     public function description(): string

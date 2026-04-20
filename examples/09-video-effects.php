@@ -12,7 +12,7 @@ $assets = __DIR__ . '/../examples/assets';
 
 $result = FluentCut::make()
     ->fullHd()
-    ->addImage("{$assets}/slide1.jpg", duration: 3, effect: [VideoEffect::ZoomCenter, VideoEffect::EdgeDetect])
+    ->addImage("{$assets}/slide1.jpg", duration: 10, effect: [VideoEffect::ZoomCenter, VideoEffect::EdgeDetect])
     ->addText('Zoom Center + Edge Detect', x: 'center', y: 256, fontSize: 36, borderWidth: 2)
     ->addImage("{$assets}/slide2.jpg", duration: 3, effect: VideoEffect::Sepia)
     ->addText('Sepia', x: 'center', y: 'bottom', fontSize: 36, borderWidth: 2)
