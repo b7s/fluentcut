@@ -36,15 +36,15 @@ enum VideoEffect: string
     {
         return match ($this) {
             self::None => '',
-            self::SoftZoom, self::ZoomCenter => $this->zoomFilter($width, $height, $duration, "(iw-{$width})/2", "(ih-{$height})/2"),
-            self::ZoomTopLeft => $this->zoomFilter($width, $height, $duration, '0', '0'),
-            self::ZoomTopCenter => $this->zoomFilter($width, $height, $duration, "(iw-{$width})/2", '0'),
-            self::ZoomTopRight => $this->zoomFilter($width, $height, $duration, "iw-{$width}", '0'),
-            self::ZoomCenterLeft => $this->zoomFilter($width, $height, $duration, '0', "(ih-{$height})/2"),
-            self::ZoomCenterRight => $this->zoomFilter($width, $height, $duration, "iw-{$width}", "(ih-{$height})/2"),
-            self::ZoomBottomLeft => $this->zoomFilter($width, $height, $duration, '0', "ih-{$height}"),
-            self::ZoomBottomCenter => $this->zoomFilter($width, $height, $duration, "(iw-{$width})/2", "ih-{$height}"),
-            self::ZoomBottomRight => $this->zoomFilter($width, $height, $duration, "iw-{$width}", "ih-{$height}"),
+            self::SoftZoom, self::ZoomCenter => $this->zoomFilter($width, $height, $duration, $fps, 'iw/2-(iw/zoom/2)', 'ih/2-(ih/zoom/2)'),
+            self::ZoomTopLeft => $this->zoomFilter($width, $height, $duration, $fps, '0', '0'),
+            self::ZoomTopCenter => $this->zoomFilter($width, $height, $duration, $fps, 'iw/2-(iw/zoom/2)', '0'),
+            self::ZoomTopRight => $this->zoomFilter($width, $height, $duration, $fps, 'iw-(iw/zoom)', '0'),
+            self::ZoomCenterLeft => $this->zoomFilter($width, $height, $duration, $fps, '0', 'ih/2-(ih/zoom/2)'),
+            self::ZoomCenterRight => $this->zoomFilter($width, $height, $duration, $fps, 'iw-(iw/zoom)', 'ih/2-(ih/zoom/2)'),
+            self::ZoomBottomLeft => $this->zoomFilter($width, $height, $duration, $fps, '0', 'ih-(ih/zoom)'),
+            self::ZoomBottomCenter => $this->zoomFilter($width, $height, $duration, $fps, 'iw/2-(iw/zoom/2)', 'ih-(ih/zoom)'),
+            self::ZoomBottomRight => $this->zoomFilter($width, $height, $duration, $fps, 'iw-(iw/zoom)', 'ih-(ih/zoom)'),
             self::Grayscale => 'format=gray',
             self::Sepia => 'colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131',
             self::Blur => 'boxblur=5:1',
@@ -71,42 +71,34 @@ enum VideoEffect: string
         };
     }
 
-    private function zoomFilter(int $width, int $height, float $duration, string $cropX, string $cropY, float $zoomAmount = 0.3): string
+    private function zoomFilter(int $width, int $height, float $duration, int $fps, string $cropX, string $cropY, float $zoomAmount = 0.3): string
     {
         if ($duration <= 0 || $width <= 0 || $height <= 0) {
             return '';
         }
 
-        $zoom = sprintf('%.2f', $zoomAmount);
-        $dur = sprintf('%.6f', $duration);
+        $frames = (int)($duration * $fps);
         
-        // Smooth progression from 0 to 1 using cosine easing
-        $progression = "0.5-0.5*cos(t*PI/{$dur})";
+        // Calculate zoom increment per frame for smooth progression
+        // Starting at zoom=1.0, ending at zoom=(1.0 + zoomAmount)
+        $zoomIncrement = sprintf('%.6f', $zoomAmount / $frames);
         
-        // Zoom factor: starts at 1.0, ends at (1.0 + zoomAmount)
-        $zoomFactor = "1+{$zoom}*({$progression})";
+        // CRITICAL: To eliminate jitter/drift in zoompan:
+        // 1. Upscale the image significantly (8000px width) before zoompan
+        // 2. Use trunc() on x/y expressions to avoid fractional pixel positions
+        //
+        // The upscaling provides enough resolution for smooth sub-pixel movements,
+        // and trunc() ensures the crop window always lands on whole pixel boundaries.
+        //
+        // References:
+        // - https://superuser.com/questions/1112617/ffmpeg-smooth-zoompan-with-no-jiggle
+        // - https://www.bannerbear.com/blog/how-to-do-a-ken-burns-style-effect-with-ffmpeg/
         
-        // For a smooth zoom without X/Y drift, we need to ensure the crop window
-        // stays centered on the same relative point in the image.
-        // 
-        // The key insight: after scaling by z, to maintain the same relative position,
-        // we need to scale the crop coordinates proportionally.
-        // 
-        // For expressions like "(iw-W)/2" (center), after scaling:
-        // - Scaled image width: iw*z
-        // - To keep centered: (iw*z - W)/2 = (iw-W)/2 * z + W/2 * (z-1)
-        // 
-        // But this causes drift because the expression is evaluated with the original iw.
-        // Solution: Use zoompan filter approach - scale and crop in one smooth operation.
-        // 
-        // Alternative: Rewrite crop expressions to work with scaled dimensions
-        // by replacing 'iw' with 'iw*z' and 'ih' with 'ih*z' in the expressions.
+        // Wrap x and y expressions with trunc() to eliminate sub-pixel jitter
+        $truncX = "trunc({$cropX})";
+        $truncY = "trunc({$cropY})";
         
-        // Replace iw and ih in the crop expressions with scaled versions
-        $scaledCropX = str_replace(['iw', 'ih'], ["(iw*({$zoomFactor}))", "(ih*({$zoomFactor}))"], $cropX);
-        $scaledCropY = str_replace(['iw', 'ih'], ["(iw*({$zoomFactor}))", "(ih*({$zoomFactor}))"], $cropY);
-
-        return "scale='iw*({$zoomFactor})':'ih*({$zoomFactor})':eval=frame,crop={$width}:{$height}:{$scaledCropX}:{$scaledCropY}";
+        return "scale=8000:-1,zoompan=z='zoom+{$zoomIncrement}':x={$truncX}:y={$truncY}:d={$frames}:s={$width}x{$height}:fps={$fps}";
     }
 
     public function description(): string
