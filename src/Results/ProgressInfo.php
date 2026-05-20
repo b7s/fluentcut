@@ -31,7 +31,7 @@ final readonly class ProgressInfo
 
     public function getFormattedSpeed(): string
     {
-        return $this->speed > 0 ? round($this->speed, 1) . 'x' : '...';
+        return $this->speed > 0 ? round($this->speed, 1).'x' : '...';
     }
 
     public function getFormattedBitrate(): string
@@ -41,15 +41,15 @@ final readonly class ProgressInfo
         }
 
         if ($this->bitrate >= 1000) {
-            return round($this->bitrate / 1000, 1) . ' Mbps';
+            return round($this->bitrate / 1000, 1).' Mbps';
         }
 
-        return round($this->bitrate, 0) . ' kbps';
+        return round($this->bitrate, 0).' kbps';
     }
 
     public function getFormattedPercentage(): string
     {
-        return round($this->percentage, 1) . '%';
+        return round($this->percentage, 1).'%';
     }
 
     /**

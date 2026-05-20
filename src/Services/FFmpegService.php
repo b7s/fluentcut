@@ -11,8 +11,8 @@ use B7s\FluentCut\Results\ProgressInfo;
 use B7s\FluentCut\Support\Platform;
 use JsonException;
 use Symfony\Component\Process\Process;
-
 use Throwable;
+
 use function explode;
 use function is_array;
 use function json_decode;
@@ -32,9 +32,13 @@ final class FFmpegService
     private array $probeCache = [];
 
     private ?string $ffmpegPath = null;
+
     private ?string $ffprobePath = null;
+
     private readonly int $timeout;
+
     private ?HardwareAccel $detectedAccel = null;
+
     /** @var array<string, true>|null */
     private ?array $encodersCache = null;
 
@@ -66,6 +70,7 @@ final class FFmpegService
 
     /**
      * @return array<string, mixed>
+     *
      * @throws JsonException|FFmpegNotFoundException
      */
     public function probe(string $path): array
@@ -88,7 +93,7 @@ final class FFmpegService
         $process = new Process($command, timeout: $this->timeout);
         $process->run();
 
-        if (!$process->isSuccessful()) {
+        if (! $process->isSuccessful()) {
             return [];
         }
 
@@ -133,7 +138,8 @@ final class FFmpegService
     {
         try {
             $info = $this->probe($path);
-        } catch (FFmpegNotFoundException|JsonException $e) {}
+        } catch (FFmpegNotFoundException|JsonException $e) {
+        }
 
         $streams = $info['streams'] ?? [];
 
@@ -195,7 +201,7 @@ final class FFmpegService
     }
 
     /**
-     * @param string[] $command
+     * @param  string[]  $command
      */
     public function run(array $command, ?int $timeout = null): Process
     {
@@ -206,8 +212,8 @@ final class FFmpegService
     }
 
     /**
-     * @param string[] $command
-     * @param callable(ProgressInfo): void|null $onProgress
+     * @param  string[]  $command
+     * @param  callable(ProgressInfo): void|null  $onProgress
      */
     public function runWithProgress(array $command, ?callable $onProgress = null, float $totalDuration = 0.0, int $fps = 30, int $segment = 0, int $totalSegments = 1, string $phase = 'rendering', ?int $timeout = null): Process
     {
@@ -263,7 +269,7 @@ final class FFmpegService
     }
 
     /**
-     * @param string[] $command
+     * @param  string[]  $command
      */
     public function runAsync(array $command, ?int $timeout = null): Process
     {
@@ -274,7 +280,7 @@ final class FFmpegService
     }
 
     /**
-     * @param string[] $command
+     * @param  string[]  $command
      */
     private function createProcess(array $command, ?int $timeout = null): Process
     {
@@ -290,7 +296,7 @@ final class FFmpegService
 
         foreach ($lines as $line) {
             $line = trim($line);
-            if (!str_starts_with($line, 'frame=')) {
+            if (! str_starts_with($line, 'frame=')) {
                 continue;
             }
 
@@ -332,7 +338,7 @@ final class FFmpegService
      */
     private function parseFFmpegLine(string $line): ?array
     {
-        if (!str_contains($line, '=')) {
+        if (! str_contains($line, '=')) {
             return null;
         }
 
@@ -457,6 +463,7 @@ final class FFmpegService
 
     /**
      * @return array<string, true>
+     *
      * @throws FFmpegNotFoundException
      */
     private function getAvailableEncoders(): array
@@ -473,7 +480,7 @@ final class FFmpegService
 
         $this->encodersCache = [];
 
-        if (!$process->isSuccessful()) {
+        if (! $process->isSuccessful()) {
             return $this->encodersCache;
         }
 
@@ -486,7 +493,7 @@ final class FFmpegService
                 continue;
             }
 
-            if (!preg_match('/^V\.+/', $trimmed)) {
+            if (! preg_match('/^V\.+/', $trimmed)) {
                 continue;
             }
 
@@ -506,14 +513,14 @@ final class FFmpegService
     {
         $candidates = [
             $name,
-            '/usr/bin/' . $name,
-            '/usr/local/bin/' . $name,
+            '/usr/bin/'.$name,
+            '/usr/local/bin/'.$name,
         ];
 
         if (Platform::isWindows()) {
-            $candidates[] = 'C:\\ffmpeg\\bin\\' . $name;
+            $candidates[] = 'C:\\ffmpeg\\bin\\'.$name;
         } elseif (Platform::isMacOS()) {
-            $candidates[] = '/opt/homebrew/bin/' . $name;
+            $candidates[] = '/opt/homebrew/bin/'.$name;
         }
 
         foreach ($candidates as $candidate) {

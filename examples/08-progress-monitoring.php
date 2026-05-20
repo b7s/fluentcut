@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
 use B7s\FluentCut\FluentCut;
 use B7s\FluentCut\Results\ProgressInfo;
@@ -30,21 +30,21 @@ $result = FluentCut::make()
         $bar = str_repeat('=', (int) round($progress->percentage / 2.5));
         $pad = str_repeat(' ', 40 - strlen($bar));
         echo "\r  [{$bar}{$pad}] {$progress->getFormattedPercentage()} "
-           . "| Time: {$progress->getFormattedTime()} "
-           . "| Speed: {$progress->getFormattedSpeed()} "
-           . "| {$progress->phase}";
+           ."| Time: {$progress->getFormattedTime()} "
+           ."| Speed: {$progress->getFormattedSpeed()} "
+           ."| {$progress->phase}";
     })
-    ->saveTo(__DIR__ . '/output/progress-demo.mp4')
+    ->saveTo(__DIR__.'/output/progress-demo.mp4')
     ->render();
 $elapsed = microtime(true) - $start;
 
 echo PHP_EOL;
 
 if ($result->isSuccessful()) {
-    echo "Created: {$result->outputPath}" . PHP_EOL;
-    echo "Duration: {$result->getFormattedDuration()}" . PHP_EOL;
-    echo "Size: {$result->getFormattedSize()}" . PHP_EOL;
-    echo "Render time: " . round($elapsed, 2) . " seconds" . PHP_EOL;
+    echo "Created: {$result->outputPath}".PHP_EOL;
+    echo "Duration: {$result->getFormattedDuration()}".PHP_EOL;
+    echo "Size: {$result->getFormattedSize()}".PHP_EOL;
+    echo 'Render time: '.round($elapsed, 2).' seconds'.PHP_EOL;
 } else {
-    echo "Error: {$result->error}" . PHP_EOL;
+    echo "Error: {$result->error}".PHP_EOL;
 }

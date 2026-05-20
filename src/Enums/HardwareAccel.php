@@ -114,7 +114,8 @@ enum HardwareAccel: string
     private function checkVaapiDevice(): bool
     {
         $devices = glob('/dev/dri/renderD*');
-        return !empty($devices);
+
+        return ! empty($devices);
     }
 
     private function checkQsvDevice(): bool

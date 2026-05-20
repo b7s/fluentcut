@@ -18,10 +18,10 @@ enum ResizeMode: string
         return match ($this) {
             self::Contain => "scale={$canvasW}:{$canvasH}:force_original_aspect_ratio=decrease,pad={$canvasW}:{$canvasH}:(ow-iw)/2:(oh-ih)/2:color=black",
             self::ContainBlur => implode(',', [
-                "split[original][bg]",
+                'split[original][bg]',
                 "[bg]scale={$canvasW}:{$canvasH}:force_original_aspect_ratio=increase,crop={$canvasW}:{$canvasH},boxblur=10:1[blurred]",
                 "[original]scale={$canvasW}:{$canvasH}:force_original_aspect_ratio=decrease[fg]",
-                "[blurred][fg]overlay=(W-w)/2:(H-h)/2",
+                '[blurred][fg]overlay=(W-w)/2:(H-h)/2',
             ]),
             self::Cover => "scale={$canvasW}:{$canvasH}:force_original_aspect_ratio=increase,crop={$canvasW}:{$canvasH}",
             self::Stretch => "scale={$canvasW}:{$canvasH}",

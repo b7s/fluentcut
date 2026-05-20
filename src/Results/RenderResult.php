@@ -7,22 +7,22 @@ namespace B7s\FluentCut\Results;
 final readonly class RenderResult
 {
     /**
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
      */
     public function __construct(
-        public bool    $success,
+        public bool $success,
         public ?string $outputPath,
-        public ?float  $duration,
-        public ?int    $width,
-        public ?int    $height,
+        public ?float $duration,
+        public ?int $width,
+        public ?int $height,
         public ?string $format,
-        public ?int    $fileSize,
+        public ?int $fileSize,
         public ?string $error = null,
-        public array   $metadata = [],
+        public array $metadata = [],
     ) {}
 
     /**
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
      */
     public static function success(
         string $outputPath,

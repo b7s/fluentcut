@@ -11,7 +11,6 @@ use B7s\FluentCut\Exceptions\RenderException;
 
 use function implode;
 use function preg_match;
-use function serialize;
 use function str_contains;
 
 final class Clip
@@ -24,13 +23,21 @@ final class Clip
     ];
 
     public ?string $videoPath = null;
+
     public ?string $imagePath = null;
+
     public float $duration = 0.0;
+
     public ?float $start = null;
+
     public ?float $end = null;
+
     public ?string $backgroundColor = null;
+
     public ResizeMode $resizeMode;
+
     public ?Transition $transition = null;
+
     public float $transitionDuration = 0.5;
 
     /** @var VideoEffect[] */
@@ -52,7 +59,7 @@ final class Clip
 
     public static function fromImage(string $path, float $duration = 1.0): self
     {
-        $clip = new self();
+        $clip = new self;
         $clip->imagePath = $path;
         $clip->duration = $duration;
 
@@ -61,7 +68,7 @@ final class Clip
 
     public static function fromVideo(string $path, ?float $start = null, ?float $end = null): self
     {
-        $clip = new self();
+        $clip = new self;
         $clip->videoPath = $path;
         $clip->start = $start;
         $clip->end = $end;
@@ -76,7 +83,7 @@ final class Clip
     {
         self::validateColor($color);
 
-        $clip = new self();
+        $clip = new self;
         $clip->backgroundColor = $color;
         $clip->duration = $duration;
 
@@ -106,16 +113,16 @@ final class Clip
             $this->start !== null ? (string) $this->start : '',
             $this->end !== null ? (string) $this->end : '',
             $this->resizeMode->value,
-            implode(',', array_map(static fn(VideoEffect $e) => $e->value, $this->effects)),
-            implode(',', array_map(fn($t) => $this->serializeTextOverlay($t), $this->textOverlays)),
-            implode(',', array_map(static fn($o) => "{$o->path}|{$o->position->x}|{$o->position->y}", $this->imageOverlays)),
+            implode(',', array_map(static fn (VideoEffect $e) => $e->value, $this->effects)),
+            implode(',', array_map(fn ($t) => $this->serializeTextOverlay($t), $this->textOverlays)),
+            implode(',', array_map(static fn ($o) => "{$o->path}|{$o->position->x}|{$o->position->y}", $this->imageOverlays)),
             implode(',', $this->audioPaths),
-            $this->transition?->value ?? 'none',
+            $this->transition !== null ? $this->transition->value : 'none',
             (string) $this->transitionDuration,
             "{$width}x{$height}x{$fps}",
         ];
 
-        return hash('xxh3', implode('|', array_filter($parts, fn($p) => $p !== '')));
+        return hash('xxh3', implode('|', array_filter($parts, static fn ($p) => $p !== '')));
     }
 
     public function cacheKeyWithCanvas(int $width, int $height, int $fps): string

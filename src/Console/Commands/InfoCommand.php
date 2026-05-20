@@ -28,13 +28,13 @@ final class InfoCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $path = $input->getArgument('file');
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             $io->error("File not found: {$path}");
 
             return Command::FAILURE;
         }
 
-        $ffmpeg = new FFmpegService();
+        $ffmpeg = new FFmpegService;
         $info = $ffmpeg->probe($path);
 
         if (empty($info)) {
@@ -49,26 +49,26 @@ final class InfoCommand extends Command
         $io->definitionList(
             ['File' => realpath($path)],
             ['Format' => $format['format_long_name'] ?? $format['format_name'] ?? 'unknown'],
-            ['Duration' => (isset($format['duration']) ? number_format((float) $format['duration'], 2) . 's' : 'unknown')],
-            ['Size' => isset($format['size']) ? number_format((int) $format['size']) . ' bytes' : 'unknown'],
-            ['Bit Rate' => isset($format['bit_rate']) ? number_format((int) $format['bit_rate']) . ' bps' : 'unknown'],
+            ['Duration' => (isset($format['duration']) ? number_format((float) $format['duration'], 2).'s' : 'unknown')],
+            ['Size' => isset($format['size']) ? number_format((int) $format['size']).' bytes' : 'unknown'],
+            ['Bit Rate' => isset($format['bit_rate']) ? number_format((int) $format['bit_rate']).' bps' : 'unknown'],
         );
 
         foreach ($info['streams'] ?? [] as $idx => $stream) {
             $type = $stream['codec_type'] ?? 'unknown';
-            $io->section(ucfirst($type) . ' Stream #' . $idx);
+            $io->section(ucfirst($type).' Stream #'.$idx);
 
             $items = [
                 ['Codec' => $stream['codec_name'] ?? $stream['codec_long_name'] ?? 'unknown'],
             ];
 
             if ($type === 'video') {
-                $items[] = ['Resolution' => ($stream['width'] ?? '?') . 'x' . ($stream['height'] ?? '?')];
+                $items[] = ['Resolution' => ($stream['width'] ?? '?').'x'.($stream['height'] ?? '?')];
                 $items[] = ['Frame Rate' => $stream['r_frame_rate'] ?? 'unknown'];
             }
 
             if ($type === 'audio') {
-                $items[] = ['Sample Rate' => ($stream['sample_rate'] ?? 'unknown') . ' Hz'];
+                $items[] = ['Sample Rate' => ($stream['sample_rate'] ?? 'unknown').' Hz'];
                 $items[] = ['Channels' => $stream['channels'] ?? 'unknown'];
             }
 

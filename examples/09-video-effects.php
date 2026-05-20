@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
 use B7s\FluentCut\Enums\VideoEffect;
 use B7s\FluentCut\FluentCut;
 
 $start = microtime(true);
-$assets = __DIR__ . '/../examples/assets';
+$assets = __DIR__.'/../examples/assets';
 
 $result = FluentCut::make()
     ->fullHd()
@@ -25,15 +25,15 @@ $result = FluentCut::make()
     ->fade(0.5)
     ->addBlack(1)
     ->fade()
-    ->saveTo(__DIR__ . '/output/video-effects.mp4')
+    ->saveTo(__DIR__.'/output/video-effects.mp4')
     ->render();
 $elapsed = microtime(true) - $start;
 
 if ($result->isSuccessful()) {
-    echo "Created: {$result->outputPath}" . PHP_EOL;
-    echo "Duration: {$result->getFormattedDuration()}" . PHP_EOL;
-    echo "Size: {$result->getFormattedSize()}" . PHP_EOL;
-    echo "Render time: " . round($elapsed, 2) . " seconds" . PHP_EOL;
+    echo "Created: {$result->outputPath}".PHP_EOL;
+    echo "Duration: {$result->getFormattedDuration()}".PHP_EOL;
+    echo "Size: {$result->getFormattedSize()}".PHP_EOL;
+    echo 'Render time: '.round($elapsed, 2).' seconds'.PHP_EOL;
 } else {
-    echo "Error: {$result->error}" . PHP_EOL;
+    echo "Error: {$result->error}".PHP_EOL;
 }

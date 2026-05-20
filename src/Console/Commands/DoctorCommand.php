@@ -28,7 +28,7 @@ final class DoctorCommand extends Command
         $checks[] = $this->checkFFmpeg($io);
         $checks[] = $this->checkFFprobe($io);
 
-        $allPassed = !in_array(false, $checks, true);
+        $allPassed = ! in_array(false, $checks, true);
 
         $io->newLine();
         if ($allPassed) {
@@ -55,7 +55,7 @@ final class DoctorCommand extends Command
     private function checkFFmpeg(SymfonyStyle $io): bool
     {
         try {
-            $ffmpeg = new FFmpegService();
+            $ffmpeg = new FFmpegService;
             $path = $ffmpeg->getFFmpegPath();
 
             $io->definitionList(
@@ -75,7 +75,7 @@ final class DoctorCommand extends Command
     private function checkFFprobe(SymfonyStyle $io): bool
     {
         try {
-            $ffmpeg = new FFmpegService();
+            $ffmpeg = new FFmpegService;
             $path = $ffmpeg->getFFprobePath();
 
             $io->definitionList(

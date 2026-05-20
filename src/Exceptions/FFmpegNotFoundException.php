@@ -10,7 +10,7 @@ class FFmpegNotFoundException extends FluentCutException
     {
         return new self(
             'FFmpeg and FFprobe were not found on your system. '
-            . 'Please install FFmpeg: https://ffmpeg.org/download.php'
+            .'Please install FFmpeg: https://ffmpeg.org/download.php'
         );
     }
 
@@ -18,7 +18,7 @@ class FFmpegNotFoundException extends FluentCutException
     {
         return new self(
             'FFmpeg not found. Please install FFmpeg and ensure it is in your PATH. '
-            . 'Download: https://ffmpeg.org/download.php'
+            .'Download: https://ffmpeg.org/download.php'
         );
     }
 
@@ -26,7 +26,7 @@ class FFmpegNotFoundException extends FluentCutException
     {
         return new self(
             'FFprobe not found. Please install FFmpeg (includes FFprobe) and ensure it is in your PATH. '
-            . 'Download: https://ffmpeg.org/download.php'
+            .'Download: https://ffmpeg.org/download.php'
         );
     }
 }

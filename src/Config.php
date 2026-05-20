@@ -8,6 +8,7 @@ final class Config
 {
     /** @var array<string, mixed>|null */
     private static ?array $config = null;
+
     private static ?string $configPath = null;
 
     private function __construct() {}
@@ -17,26 +18,28 @@ final class Config
      */
     public static function load(?string $configPath = null): array
     {
-        if (self::$config !== null && $configPath === null) {
+        if ($configPath === null && self::$config !== null) {
             return self::$config;
         }
 
         $paths = array_filter([
             $configPath,
-            self::findProjectRoot() . '/fluentcut-config.php',
-            getcwd() . '/fluentcut-config.php',
-            dirname(__DIR__) . '/fluentcut-config.php',
+            self::findProjectRoot().'/fluentcut-config.php',
+            getcwd().'/fluentcut-config.php',
+            dirname(__DIR__).'/fluentcut-config.php',
         ]);
 
         foreach ($paths as $path) {
             if (file_exists($path)) {
                 self::$config = require $path;
                 self::$configPath = realpath($path);
+
                 return self::$config;
             }
         }
 
         self::$config = self::defaults();
+
         return self::$config;
     }
 
@@ -49,7 +52,7 @@ final class Config
             $value = $config;
 
             foreach ($keys as $k) {
-                if (!is_array($value) || !array_key_exists($k, $value)) {
+                if (! is_array($value) || ! array_key_exists($k, $value)) {
                     return $default;
                 }
                 $value = $value[$k];
@@ -96,9 +99,9 @@ final class Config
     private static function findProjectRoot(): string
     {
         $autoloadPaths = [
-            __DIR__ . '/../../autoload.php',
-            __DIR__ . '/../../../autoload.php',
-            getcwd() . '/vendor/autoload.php',
+            __DIR__.'/../../autoload.php',
+            __DIR__.'/../../../autoload.php',
+            getcwd().'/vendor/autoload.php',
         ];
 
         foreach ($autoloadPaths as $autoloadPath) {
@@ -107,7 +110,7 @@ final class Config
                 $vendorDir = dirname($realPath);
                 if (basename($vendorDir) === 'vendor') {
                     $projectRoot = dirname($vendorDir);
-                    if (file_exists($projectRoot . '/composer.json')) {
+                    if (file_exists($projectRoot.'/composer.json')) {
                         return $projectRoot;
                     }
                 }
@@ -116,9 +119,9 @@ final class Config
 
         $dir = getcwd();
         for ($i = 0; $i < 10; $i++) {
-            if (file_exists($dir . '/composer.json')) {
+            if (file_exists($dir.'/composer.json')) {
                 $normalized = str_replace('\\', '/', $dir);
-                if (!str_contains($normalized, '/vendor/') && !str_ends_with($normalized, '/vendor')) {
+                if (! str_contains($normalized, '/vendor/') && ! str_ends_with($normalized, '/vendor')) {
                     return $dir;
                 }
             }

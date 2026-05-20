@@ -56,7 +56,7 @@ enum VideoEffect: string
             self::Desaturate => 'eq=saturation=0.4',
             self::Negate => 'negate',
             self::EdgeDetect => 'edgedetect',
-            self::Pixelate => "scale=iw/10:ih/10,scale=iw*10:ih*10:flags=neighbor",
+            self::Pixelate => 'scale=iw/10:ih/10,scale=iw*10:ih*10:flags=neighbor',
         };
     }
 
@@ -77,12 +77,12 @@ enum VideoEffect: string
             return '';
         }
 
-        $frames = (int)($duration * $fps);
-        
+        $frames = (int) ($duration * $fps);
+
         // Calculate zoom increment per frame for smooth progression
         // Starting at zoom=1.0, ending at zoom=(1.0 + zoomAmount)
         $zoomIncrement = sprintf('%.6f', $zoomAmount / $frames);
-        
+
         // CRITICAL: To eliminate jitter/drift in zoompan:
         // 1. Upscale the image significantly (8000px width) before zoompan
         // 2. Use trunc() on x/y expressions to avoid fractional pixel positions
@@ -93,11 +93,11 @@ enum VideoEffect: string
         // References:
         // - https://superuser.com/questions/1112617/ffmpeg-smooth-zoompan-with-no-jiggle
         // - https://www.bannerbear.com/blog/how-to-do-a-ken-burns-style-effect-with-ffmpeg/
-        
+
         // Wrap x and y expressions with trunc() to eliminate sub-pixel jitter
         $truncX = "trunc({$cropX})";
         $truncY = "trunc({$cropY})";
-        
+
         return "scale=8000:-1,zoompan=z='zoom+{$zoomIncrement}':x={$truncX}:y={$truncY}:d={$frames}:s={$width}x{$height}:fps={$fps}";
     }
 

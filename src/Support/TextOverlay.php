@@ -11,6 +11,7 @@ use function str_replace;
 final readonly class TextOverlay
 {
     private const array ESCAPE_FROM = ['\\', "'", '"', ':', '%', '[', ']', ';', '{', '}'];
+
     private const array ESCAPE_TO = ['\\\\', "\\'", '\\"', '\\:', '%%', '\\[', '\\]', '\\;', '\\{', '\\}'];
 
     public function __construct(
@@ -34,13 +35,13 @@ final readonly class TextOverlay
         $y = $this->position->toFFmpegDrawtextY();
 
         $params = [
-            "text='" . self::escape($this->text) . "'",
+            "text='".self::escape($this->text)."'",
             "fontcolor={$this->fontColor}",
             "fontsize={$this->fontSize}",
         ];
 
         if ($this->fontFile !== null && file_exists($this->fontFile) && is_file($this->fontFile)) {
-            $params[] = "fontfile='" . self::escape($this->fontFile) . "'";
+            $params[] = "fontfile='".self::escape($this->fontFile)."'";
         }
 
         if ($this->borderWidth > 0) {
@@ -63,7 +64,7 @@ final readonly class TextOverlay
             $params[] = sprintf("enable='between(t,0,%.6f)'", $this->end);
         }
 
-        return 'drawtext=' . implode(':', $params);
+        return 'drawtext='.implode(':', $params);
     }
 
     public static function escape(string $value): string

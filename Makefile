@@ -1,4 +1,4 @@
-.PHONY: help install test test-unit test-types test-coverage test-plugin release
+.PHONY: help install test test-unit test-types test-coverage test-plugin catraca release
 
 RELEASE_VERSION := $(if $(VERSION),$(VERSION),$(version))
 RELEASE_MESSAGE := $(if $(MESSAGE),$(MESSAGE),$(message))
@@ -12,6 +12,7 @@ help:
 	@echo "  make test-types      - Run PHPStan static analysis"
 	@echo "  make test-coverage   - Run tests with coverage report"
 	@echo "  make test-plugin     - Test Composer plugin in fresh project"
+	@echo "  make catraca         - Run quality gate (style, analysis, tests, duplication)"
 	@echo "  make release version=x.y.z message='msg' - Run tests and create Git tag"
 	@echo "  make clean           - Clean cache and temporary files"
 
@@ -50,6 +51,11 @@ test-coverage:
 test-plugin:
 	@echo "🔌 Testing Composer plugin..."
 	./test-plugin.sh
+
+# Run quality gate (catraca)
+catraca:
+	@echo "🔒 Running quality gate..."
+	./vendor/bin/catraca
 
 # Create a tagged release (auto-commits changes if any)
 release:

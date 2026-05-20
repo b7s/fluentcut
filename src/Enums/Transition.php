@@ -76,9 +76,9 @@ enum Transition: string
     public function isCrossfade(): bool
     {
         return match ($this) {
-            self::Fade, 
-            self::FadeBlack, 
-            self::FadeWhite, 
+            self::Fade,
+            self::FadeBlack,
+            self::FadeWhite,
             self::FadeGrays,
             self::Dissolve => true,
             default => false,

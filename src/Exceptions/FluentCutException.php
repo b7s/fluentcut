@@ -6,6 +6,4 @@ namespace B7s\FluentCut\Exceptions;
 
 use Exception;
 
-class FluentCutException extends Exception
-{
-}
+class FluentCutException extends Exception {}

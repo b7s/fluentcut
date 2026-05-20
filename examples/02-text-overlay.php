@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
 use B7s\FluentCut\FluentCut;
 
 $start = microtime(true);
 $result = FluentCut::make()
     ->fullHd()
-    ->addImage(__DIR__ . '/../examples/assets/slide2.jpg', duration: 5)
+    ->addImage(__DIR__.'/../examples/assets/slide2.jpg', duration: 5)
     ->addText(
         text: 'Welcome to FluentCut',
         x: 'center',
@@ -23,13 +23,13 @@ $result = FluentCut::make()
         shadowColor: 'black@0.7',
     )
     ->addText('A fluent video editing API', x: 'center', y: '25%', fontSize: 28, fontColor: '#cccccc')
-    ->saveTo(__DIR__ . '/output/text-overlay.mp4')
+    ->saveTo(__DIR__.'/output/text-overlay.mp4')
     ->render();
 $elapsed = microtime(true) - $start;
 
 if ($result->isSuccessful()) {
-    echo "Created: {$result->outputPath}" . PHP_EOL;
-    echo "Render time: " . round($elapsed, 2) . " seconds" . PHP_EOL;
+    echo "Created: {$result->outputPath}".PHP_EOL;
+    echo 'Render time: '.round($elapsed, 2).' seconds'.PHP_EOL;
 } else {
-    echo "Error: {$result->error}" . PHP_EOL;
+    echo "Error: {$result->error}".PHP_EOL;
 }

@@ -20,7 +20,7 @@ final readonly class ImageOverlay
         $x = $this->position->resolveX($canvasW);
         $y = $this->position->resolveY($canvasH);
 
-        $overlay = "[1:v]";
+        $overlay = '[1:v]';
 
         if ($this->width !== null || $this->height !== null) {
             $w = $this->width ?? -1;
@@ -28,7 +28,7 @@ final readonly class ImageOverlay
             $overlay .= "scale={$w}:{$h},";
         }
 
-        $overlay .= "setpts=PTS-STARTPTS[overlay];";
+        $overlay .= 'setpts=PTS-STARTPTS[overlay];';
         $overlay .= "[0:v][overlay]overlay={$x}:{$y}";
 
         if ($this->start > 0.0 || $this->end !== null) {

@@ -11,6 +11,7 @@ use B7s\FluentCut\Enums\ResizeMode;
 use B7s\FluentCut\Enums\Transition;
 use B7s\FluentCut\Exceptions\RenderException;
 use B7s\FluentCut\FluentCut;
+use B7s\FluentCut\Results\RenderResult;
 use B7s\FluentCut\Support\Clip;
 use B7s\FluentCut\Support\Position;
 use B7s\FluentCut\Support\TextOverlay;
@@ -340,7 +341,7 @@ describe('TextOverlay', function () {
 
 describe('RenderResult', function () {
     it('creates success result', function () {
-        $result = \B7s\FluentCut\Results\RenderResult::success(
+        $result = RenderResult::success(
             outputPath: '/tmp/video.mp4',
             duration: 10.5,
             width: 1920,
@@ -356,7 +357,7 @@ describe('RenderResult', function () {
     });
 
     it('creates failure result', function () {
-        $result = \B7s\FluentCut\Results\RenderResult::failure('Something broke');
+        $result = RenderResult::failure('Something broke');
 
         expect($result->isSuccessful())->toBeFalse();
         expect($result->error)->toBe('Something broke');
@@ -364,7 +365,7 @@ describe('RenderResult', function () {
     });
 
     it('formats duration with fractional seconds', function () {
-        $result = \B7s\FluentCut\Results\RenderResult::success(
+        $result = RenderResult::success(
             outputPath: '/tmp/video.mp4',
             duration: 65.7,
             width: 1920,
@@ -377,7 +378,7 @@ describe('RenderResult', function () {
     });
 
     it('converts to array', function () {
-        $result = \B7s\FluentCut\Results\RenderResult::success(
+        $result = RenderResult::success(
             outputPath: '/tmp/video.mp4',
             duration: 5.0,
             width: 1920,

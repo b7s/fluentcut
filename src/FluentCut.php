@@ -18,9 +18,9 @@ use B7s\FluentCut\Support\Clip;
 use B7s\FluentCut\Support\ImageOverlay;
 use B7s\FluentCut\Support\Position;
 use B7s\FluentCut\Support\TextOverlay;
-
 use JsonException;
 use Throwable;
+
 use function array_key_last;
 use function dirname;
 use function file_exists;
@@ -66,31 +66,43 @@ class FluentCut
     private array $clips = [];
 
     private int $width;
+
     private int $height;
+
     private int $fps;
+
     private ?string $outputPath = null;
+
     private ?Codec $codec = null;
-    private ?Transition $transition = null;
-    private float $transitionDuration = 0.5;
+
     private ?Transition $pendingTransition = null;
+
     private float $pendingTransitionDuration = 0.5;
-    private ?string $audioPath = null;
-    private bool $loopAudio = false;
-    private ?float $audioVolume = null;
-    /** @var array{path: string, volume: float, startAt: float, duration: ?float}[] */
+
+    /** @var list<array{path: string, volume: float, startAt: float, endAt: float|null, loop: bool, fadeDuration: float}> */
     private array $audioTracks = [];
+
     private bool $keepSourceAudio = true;
+
     private ResizeMode $resizeMode;
+
     private int $timeout;
+
     private bool $verbose;
+
     private bool $cacheEnabled;
+
     private ?HardwareAccel $hardwareAccel = null;
+
     private bool $forceCpu = false;
+
     private int $maxConcurrentSegments = 0;
+
     /** @var callable(ProgressInfo): void|null */
     private $onProgress = null;
 
     private readonly FFmpegService $ffmpegService;
+
     private readonly CompositorService $compositor;
 
     private static ?FFmpegService $sharedFFmpeg = null;
@@ -116,7 +128,7 @@ class FluentCut
 
     public static function make(): self
     {
-        return new self();
+        return new self;
     }
 
     // =========================================================================
@@ -178,7 +190,8 @@ class FluentCut
      * @throws RenderException
      */
     /**
-     * @param VideoEffect|VideoEffect[]|null $effect
+     * @param  VideoEffect|VideoEffect[]|null  $effect
+     *
      * @throws RenderException
      */
     public function addVideo(string $path, ?float $start = null, ?float $end = null, VideoEffect|array|null $effect = null): self
@@ -186,24 +199,13 @@ class FluentCut
         $this->assertFileExists($path);
 
         $clip = Clip::fromVideo($path, $start, $end);
-        $clip->resizeMode = $this->resizeMode;
-        $clip->effects = self::normalizeEffects($effect);
-        
-        // Apply pending transition to this clip
-        if ($this->pendingTransition !== null) {
-            $clip->transition = $this->pendingTransition;
-            $clip->transitionDuration = $this->pendingTransitionDuration;
-            $this->pendingTransition = null;
-            $this->pendingTransitionDuration = 0.5;
-        }
-        
-        $this->clips[] = $clip;
 
-        return $this;
+        return $this->clipConfigure($clip, $effect);
     }
 
     /**
-     * @param VideoEffect|VideoEffect[]|null $effect
+     * @param  VideoEffect|VideoEffect[]|null  $effect
+     *
      * @throws RenderException
      */
     public function fromVideo(string $path, ?float $start = null, ?float $end = null, VideoEffect|array|null $effect = null): self
@@ -216,7 +218,8 @@ class FluentCut
     // =========================================================================
 
     /**
-     * @param VideoEffect|VideoEffect[]|null $effect
+     * @param  VideoEffect|VideoEffect[]|null  $effect
+     *
      * @throws RenderException
      */
     public function addImage(string $path, float $duration = 1.0, VideoEffect|array|null $effect = null): self
@@ -224,25 +227,14 @@ class FluentCut
         $this->assertFileExists($path);
 
         $clip = Clip::fromImage($path, $duration);
-        $clip->resizeMode = $this->resizeMode;
-        $clip->effects = self::normalizeEffects($effect);
-        
-        // Apply pending transition to this clip
-        if ($this->pendingTransition !== null) {
-            $clip->transition = $this->pendingTransition;
-            $clip->transitionDuration = $this->pendingTransitionDuration;
-            $this->pendingTransition = null;
-            $this->pendingTransitionDuration = 0.5;
-        }
-        
-        $this->clips[] = $clip;
 
-        return $this;
+        return $this->clipConfigure($clip, $effect);
     }
 
     /**
-     * @param string[] $paths
-     * @param VideoEffect|VideoEffect[]|null $effect
+     * @param  string[]  $paths
+     * @param  VideoEffect|VideoEffect[]|null  $effect
+     *
      * @throws RenderException
      */
     public function addImages(array $paths, float $duration = 1.0, VideoEffect|array|null $effect = null): self
@@ -259,25 +251,15 @@ class FluentCut
     // =========================================================================
 
     /**
-     * @param VideoEffect|VideoEffect[]|null $effect
+     * @param  VideoEffect|VideoEffect[]|null  $effect
+     *
      * @throws RenderException
      */
     public function addColor(string $color, float $duration = 1.0, VideoEffect|array|null $effect = null): self
     {
         $clip = Clip::fromColor($color, $duration);
-        $clip->effects = self::normalizeEffects($effect);
-        
-        // Apply pending transition to this clip
-        if ($this->pendingTransition !== null) {
-            $clip->transition = $this->pendingTransition;
-            $clip->transitionDuration = $this->pendingTransitionDuration;
-            $this->pendingTransition = null;
-            $this->pendingTransitionDuration = 0.5;
-        }
-        
-        $this->clips[] = $clip;
 
-        return $this;
+        return $this->clipNormalize($effect, $clip);
     }
 
     /**
@@ -302,6 +284,7 @@ class FluentCut
 
     /**
      * Add a text overlay to the most recently added clip.
+     *
      * @throws RenderException
      */
     public function addText(
@@ -343,8 +326,6 @@ class FluentCut
         return $this;
     }
 
-    
-
     // =========================================================================
     // VIDEO EFFECTS (applied to the last clip)
     // =========================================================================
@@ -352,7 +333,8 @@ class FluentCut
     /**
      * Apply one or more visual effects to the most recently added clip.
      *
-     * @param VideoEffect ...$effects One or more effects to apply (duplicates removed)
+     * @param  VideoEffect  ...$effects  One or more effects to apply (duplicates removed)
+     *
      * @throws RenderException
      */
     public function effect(VideoEffect ...$effects): self
@@ -370,6 +352,7 @@ class FluentCut
 
     /**
      * Overlay an image on top of the most recently added clip.
+     *
      * @throws RenderException
      */
     public function overlayImage(
@@ -435,7 +418,7 @@ class FluentCut
 
     public function audioVolume(float $volume): self
     {
-        if (!empty($this->audioTracks)) {
+        if (! empty($this->audioTracks)) {
             $this->audioTracks[array_key_last($this->audioTracks)]['volume'] = max(0, $volume);
         }
 
@@ -479,7 +462,7 @@ class FluentCut
 
     public function noTransition(): self
     {
-        $this->transition = null;
+        $this->pendingTransition = null;
 
         return $this;
     }
@@ -554,7 +537,7 @@ class FluentCut
      * Uses a hybrid approach: GPU encodes individual segments in parallel,
      * CPU handles the xfade transition pass (FFmpeg's xfade is CPU-only).
      *
-     * @param HardwareAccel|null $accel Specific backend, or null to auto-detect
+     * @param  HardwareAccel|null  $accel  Specific backend, or null to auto-detect
      */
     public function useGpu(?HardwareAccel $accel = null): self
     {
@@ -583,7 +566,7 @@ class FluentCut
      * - percentage (0-100), segment/totalSegments
      * - phase (e.g. "rendering segment 2", "mixing audio")
      *
-     * @param callable(ProgressInfo): void $callback
+     * @param  callable(ProgressInfo): void  $callback
      */
     public function onProgress(callable $callback): self
     {
@@ -671,7 +654,7 @@ class FluentCut
         }
 
         $outputDir = dirname($this->outputPath);
-        if (!is_dir($outputDir) && !mkdir($outputDir, 0755, true) && !is_dir($outputDir)) {
+        if (! is_dir($outputDir) && ! mkdir($outputDir, 0755, true) && ! is_dir($outputDir)) {
             return RenderResult::failure("Cannot create output directory: {$outputDir}");
         }
 
@@ -682,8 +665,8 @@ class FluentCut
             fps: $this->fps,
             outputPath: $this->outputPath,
             codec: $this->codec,
-            transition: $this->transition,
-            transitionDuration: $this->transitionDuration,
+            transition: null,
+            transitionDuration: 0.5,
             audioTracks: $this->audioTracks,
             audioPath: null,
             keepSourceAudio: $this->keepSourceAudio,
@@ -751,18 +734,18 @@ class FluentCut
      */
     private function assertFileExists(string $path): void
     {
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             throw RenderException::fileNotFound($path);
         }
     }
 
     private static function sharedFFmpegService(): FFmpegService
     {
-        return self::$sharedFFmpeg ??= new FFmpegService();
+        return self::$sharedFFmpeg ??= new FFmpegService;
     }
 
     /**
-     * @param VideoEffect|VideoEffect[]|null $effects
+     * @param  VideoEffect|VideoEffect[]|null  $effects
      * @return VideoEffect[]
      */
     private static function normalizeEffects(VideoEffect|array|null $effects): array
@@ -778,5 +761,37 @@ class FluentCut
         $unique = array_unique($effects, SORT_REGULAR);
 
         return array_values(array_filter($unique, static fn (VideoEffect $e) => $e !== VideoEffect::None));
+    }
+
+    /**
+     * @param  VideoEffect|VideoEffect[]|null  $effect
+     * @return $this
+     */
+    private function clipConfigure(Clip $clip, array|VideoEffect|null $effect): self
+    {
+        $clip->resizeMode = $this->resizeMode;
+
+        return $this->clipNormalize($effect, $clip);
+    }
+
+    /**
+     * @param  VideoEffect|VideoEffect[]|null  $effect
+     * @return $this
+     */
+    private function clipNormalize(array|VideoEffect|null $effect, Clip $clip): self
+    {
+        $clip->effects = self::normalizeEffects($effect);
+
+        // Apply pending transition to this clip
+        if ($this->pendingTransition !== null) {
+            $clip->transition = $this->pendingTransition;
+            $clip->transitionDuration = $this->pendingTransitionDuration;
+            $this->pendingTransition = null;
+            $this->pendingTransitionDuration = 0.5;
+        }
+
+        $this->clips[] = $clip;
+
+        return $this;
     }
 }
